@@ -77,7 +77,7 @@ results_LRonly <- ec_reg(data_X = X, data_y = y, data_H = H,
                   par.include = include_2error,
                   par.init = initpar)
 # results for the model when the short run risk variable is objective (model 2)
-results_LR_objSR <- reg_psi(data_X=H, data_y=y, data_H=H,
+results_LR_objSR <- reg_psi(data_X = X, data_y = y, data_H = H,
                         psi = 1, method = "p",
                         district = district, time = time, type = type,
                         var = Xnames_base,
@@ -85,7 +85,7 @@ results_LR_objSR <- reg_psi(data_X=H, data_y=y, data_H=H,
                         par.init = initpar)
 # 
 # results for the base model (model 3)
-results_base <- reg_psi(data_X=X, data_y=y, data_H=H,
+results_base <- reg_psi(data_X = X, data_y = y, data_H = H,
                     psi = 3.74, method = "p",
                     district = district, time = time, type = type,
                     var = Xnames_base,
