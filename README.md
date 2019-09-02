@@ -12,4 +12,5 @@
   The code is written in `R version 3.4.0`.
   Additionally the package `dplyr` (version 0.7.6), `PtProcess` are needed.
   
-  We have written an R package `mvecr` (multivariate error components estimation in R) for the main estimation steps to replicate the analysis in the paper. Detailed installation instructions as well as code used to replicate tables and figures of the paper, can be found in `instructions.Rmd` or `instructions.pdf`.
+  We have written an R package `mvecr` (multivariate error components estimation in R) for the main estimation steps to replicate the analysis in the paper. Descriptions of the functions can be found in the manual `mvecr.0.1.0.pdf`.
+  Detailed installation instructions as well as code used to replicate tables and figures of the paper, can be found in `instructions.Rmd` or `instructions.pdf`.
