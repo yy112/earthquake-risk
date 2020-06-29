@@ -208,7 +208,7 @@ The main functions included in `etas_func.R` are
 - `EQcatalog`:  this function generates an earthquake catalog in the format that can be used for the estimation of ETAS models;
 - `etas_estim`: this function estimates the parameters of the ETAS model using the `PtProcess` package;
 - `etas_prob`: this function calculates the earthquake probability forecasts within a given time period through simulation using the `PtProcess` package.
-- `gen_Xpsi_city`: this function generates the simulated earthquake probabilities for each city throught the entire sample period (2006Q2 - 2015Q3) using `etas_prob`.
+- `gen_Xpsi_city`: this function generates the simulated earthquake probabilities for each city for the entire sample period (2006Q2 - 2015Q3) using `etas_prob`.
 
 ## Multivariate error components regression
 
@@ -290,7 +290,7 @@ kable(sum.table %>%
 
 ## Simulation of short-run earthquake probabilities
 
-The following code can be used to simulate the short-run earthquake probabilities. We used 30000 runs to generate the final similated probabilities, while each run takes about 24 hours for each city. The output of our simulation, "Xpsi-1.csv", is used as an input to the multivariate error components model for the rest of this paper. To continue the replication for this paper use the file "Xpsi-1.csv" in the "data" folder for the rest of this document.
+The following code can be used to simulate the short-run earthquake probabilities. We used 30000 runs to generate the final similated probabilities, which takes about 24 hours for each city. The output of our simulation, "Xpsi-1.csv", is used as an input to the multivariate error components model for the rest of this paper. To continue the replication for this paper use the file "Xpsi-1.csv" in the "data" folder for the rest of this document.
 
 ```{r echo=T, eval=F}
 # This file generates the additional vector of regressor XPsi, for given psi.

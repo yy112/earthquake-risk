@@ -39,7 +39,7 @@ This file contains the main functions used in the estimation and simulation of E
   
 3. `R` package `mvecr`
 
-  We have written an R package `mvecr` ("multivariate error components estimation in R") for the main estimation functions to replicate the analysis in the paper. Descriptions of the functions can be found in the manual `mvecr.0.3.0.pdf`. To install this package, download the source file for R package `mvecr` (`mvecr_0.3.0.tar.gz`) from https://github.com/yy112/earthquake-risk and choose "Install packages from Package Archive File (.zip; .tar.gz)" in R. A manual of this package is also included in this repository, which is more detailed about the types of inputs and outputs of each function in this package. A subsample of the `individual_data` dataset is included in this package to be used in examples.
+  We have written an R package `mvecr` ("multivariate error components estimation in R") for the main estimation functions to replicate the analysis in the paper. To install this package, download the source file for R package `mvecr` (`mvecr_0.3.0.tar.gz`) from https://github.com/yy112/earthquake-risk and choose "Install packages from Package Archive File (.zip; .tar.gz)" in `R`. A manual of this package (`mvecr_manual.pdf`) is also included in this repository, which is more detailed about the inputs and outputs of each function in this package. A subsample of the `individual_data` dataset is included in this package to be used in examples.
 
   Detailed installation instructions as well as code used to replicate tables and figures of the paper, can be found in `replication_instructions.Rmd` or `replication_instructions.pdf`.
 
@@ -50,7 +50,7 @@ This file contains the main functions used in the estimation and simulation of E
 A. Estimation and simulation of the ETAS model
 
   - Estimation of the ETAS model (replication of the summary statistics and estimation results in Table 48 and Table 50 of the data documentation). Computation time needed: 5 minutes.
-  - Simulation of short-run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalogue. Computation time needed: one minute for 1000 Monte Carlo runs for each city. Replication of Figures 1 and 2 of the paper can be done using the provided data `Xpsi-1.csv` without having to perform the simulation first.
+  - Simulation of short-run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalogue. Computation time needed: around 24 hours for 30000 Monte Carlo runs for each city. The output of the simulation is contained in `Xpsi-1.csv`. Replication of Figures 1 and 2 of the paper can be done using the provided data `Xpsi-1.csv` without having to perform the simulation first.
 
 and 
 
