@@ -1,0 +1,2269 @@
+---
+title: "Replication Instructions"
+author: "Masako Ikefuji, Roger J. A. Laeven, Jan R. Magnus, Yuan Yue"
+date: "June 26, 2020"
+output:
+  pdf_document: 
+    keep_tex: true
+header-includes:
+  \usepackage{booktabs}
+  \usepackage{longtable}
+  \usepackage{array}
+  \usepackage{multirow}
+  \usepackage{wrapfig}
+  \usepackage{float}
+  \floatplacement{figure}{H}
+---
+
+
+
+This document contains instructions to replicate all the estimation procedures, tables and graphs in the paper: 
+ _Earthquake risk embedded in property prices: Evidence from five Japanese cities_.
+
+The structure of the code consists of two major parts:
+
+A. Estimation and simulation of the ETAS model
+
+  - Estimation of the ETAS model (replication of the summary statistics and estimation results in Table 48 and Table 50 of the data documentation);
+  - Simulation of short-run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalogue. Replication of Figures 1 and 2 of the paper;
+
+and 
+
+B. Estimation of the multivariate error components regression model
+
+  - Characteristics of the housing dataset. Replication of Table 1 of the paper;
+  - Characteristics of the JSHIS long run probabilities. Replication of Table 2 of the paper;
+  - Main estimation results. Replication of Table 3 and Figure 3 of the paper;
+  - Sensitivity analysis regarding probability weighting functions. Replication of Table 4 and Figure 4 of the paper;
+  - Sensitivity analysis regarding other model specifications. Replication of Tables B1 - B5 of the supplementary material;
+  - Importance ordering and decomposition of risk premia. Replication of Tables C6 - C7 of the supplementary material.
+
+These two parts can be executed independently of each other. The functions related to the estimation and simulation of the ETAS model are contained in the file `etas_funcs.R`. The functions related to the estimation of the multivariate error components regression model are contained in the $\tt{R}$ package `mvecr`.
+
+
+
+
+
+
+```{r setup, include=FALSE}
+
+path <- "C:/Users/yuany/Dropbox/earthquake_risk_premia/revision/github/earthquake-risk-master"
+
+knitr::opts_chunk$set(echo = TRUE, eval=FALSE, root.dir = path, message=F, warning=F)
+
+ 
+library(PtProcess)
+library(dplyr)
+library(mvecr)
+library(readr)
+library(knitr)
+library(zoo)
+library(kableExtra)
+
+
+source('etas_funcs.R')
+
+
+# read data
+individual_data <-
+  readr::read_csv(
+    paste0(path, "/data/individual_data.zip"),
+    col_types = cols(
+      .default = col_double(),
+      t = col_character(),
+      Type = col_character(),
+      Area = col_character(),
+      Area.Ward.City = col_character(),
+      City = col_character(),
+      Nearest.station.Name = col_character(),
+      Station.City = col_character(),
+      Building.structure = col_character(),
+      City.Planning = col_character()))
+Xpsi1 <- read.table(
+  paste0(path, "/data/Xpsi-1.csv"),
+  header = TRUE,
+  sep = ",",
+  quote = "\"",
+  dec = ".",
+  stringsAsFactors = F)
+
+
+city_range <- read.table(
+  paste0(path, "/data/city_range.csv"),
+  header = TRUE,
+  sep = ";",
+  quote = "\"",
+  dec = ".",
+  stringsAsFactors = F)
+
+jma_data <- read.table(
+  paste0(path, "/data/JMA_records.csv"),
+  header = TRUE,
+  sep = ",",
+  quote = "\"",
+  dec = ".",
+  stringsAsFactors = F)
+
+
+```
+
+# Download and installation instructions
+
+* Download and install the latest version of Rtools from \url{https://cran.r-project.org/bin/windows/Rtools/}.
+* After the installation is complete, put the location of the Rtools _make_ utilities (bash, make, etc) on the PATH by executing the following command in $\tt{R}$ (for Rtools 40 as an example):
+```{r, eval=F}
+writeLines('PATH="${RTOOLS40_HOME}\\usr\\bin;${PATH}"', con = "~/.Renviron")
+```
+
+* Restart $\tt{R}$ and verify that the _make_ function can be found by executing the command:
+```{r, eval=F}
+Sys.which("make")
+## "C:\\rtools40\\usr\\bin\\make.exe"
+```
+
+* Create a directory called "earthquake-risk" and set it as the current working directory in $\tt{R}$.
+* Download the compressed file for $\tt{R}$ package `mvecr` ("mvecr_0.3.0.tar.gz") from \url{https://github.com/yy112/earthquake-risk} into the current working directory.
+* Within the current working directory, create a subdirectory called "data" and download the files.
+"individual_data.zip", "Xpsi-1.csv", "city_range.csv", and "JMA_records.csv" into this subdirectory.
+* Within the current working directory, create a subdirectory called "output".
+* Use the following $\tt{R}$ code to install all relevant packages and read data.
+
+```{r packages, echo=T, eval=F}
+
+install.packages("PtProcess")
+install.packages("dplyr")
+install.packages("readr")
+install.packages("zoo")
+install.packages("R.utils")
+install.packages("mvecr_0.3.0.tar.gz", repos = NULL, type = "source")
+
+library(PtProcess)
+library(dplyr)
+library(mvecr)
+library(readr)
+library(zoo)
+library(R.utils)
+
+path <- "./earthquake-risk"
+
+source('etas_funcs.R')
+
+
+# read data
+individual_data <-
+  readr::read_csv(
+    paste0(path, "/data/individual_data.zip"),
+    col_types = cols(
+      .default = col_double(),
+      t = col_character(),
+      Type = col_character(),
+      Area = col_character(),
+      Area.Ward.City = col_character(),
+      City = col_character(),
+      Nearest.station.Name = col_character(),
+      Station.City = col_character(),
+      Building.structure = col_character(),
+      City.Planning = col_character()))
+Xpsi1 <- read.table(
+  paste0(path, "/data/Xpsi-1.csv"),
+  header = TRUE,
+  sep = ",",
+  quote = "\"",
+  dec = ".",
+  stringsAsFactors = F)
+city_range <- read.table(
+  paste0(path, "/data/city_range.csv"),
+  header = TRUE,
+  sep = ";",
+  quote = "\"",
+  dec = ".",
+  stringsAsFactors = F)
+jma_data <- read.table(
+  paste0(path, "/data/JMA_records.csv"),
+  header = TRUE,
+  sep = ",",
+  quote = "\"",
+  dec = ".",
+  stringsAsFactors = F)
+
+```
+
+# Description of data files
+
+* `individual_data.zip` (contains `individual_data.csv`, a csv file of 94446 KB): This is the main data file of our paper, with 331343 observations of our housing sample from 2006Q2 - 2015Q3. Each row represents one housing transaction record, containing information on (the  natural logarithm of) total transaction price of a residential property, transaction period, housing type, city, district(area), ward, name of the nearest station, distance to the nearest station, square footage, total floor area, building age, building structure, long term earthquake probability forecast provided by JSHIS, macroeconomic variables, indicators of ward information, dummy variables for the transaction quarter, etc.
+
+* `city_range.csv` (1 KB): This file contains the names of the five cities included in our study and the corresponding range of coordinates for the space window chosen for each city. The range of coordinates are used for selecting the earthquake records to be included in the estimation of ETAS models.
+
+* `JMA_records.csv` (24245 KB): This file contains all earthquake records downloaded from the JMA website, with 194882 observations ranging from 1923-01-01 to 2015-12-31. Each row contains an earthquake record with relevant information. The information related to each record consists of time, location, magnitude, etc. A subset of this file is used to estimate ETAS models.  
+
+* `Xpsi-1.cs`v (2 KB): This file is the simulation output of the ETAS models. For each city in our study, the ETAS model is estimated and simulated. The simulated probability of having an earthquake exceeding the magnitude threshold 5.5 in each quarter is recorded in this dataset. Each column corresponds to one of the five cities included in the scope of our analysis, and each row is the simulated quarterly short-run eartjquake probability.   
+
+
+# Main user-facing functions
+
+## ETAS estimation and simulation
+
+The main functions included in `etas_func.R` are
+
+- `EQcatalog`:  this function generates an earthquake catalog in the format that can be used for the estimation of ETAS models;
+- `etas_estim`: this function estimates the parameters of the ETAS model using the `PtProcess` package;
+- `etas_prob`: this function calculates the earthquake probability forecasts within a given time period through simulation using the `PtProcess` package.
+- `gen_Xpsi_city`: this function generates the simulated earthquake probabilities for each city throught the entire sample period (2006Q2 - 2015Q3) using `etas_prob`.
+
+## Multivariate error components regression
+
+The main user-facing functions of our code are the `vectorize`, `ec_reg`, `reg_psi`, and `opt_psi` functions in the `mvecr` package. 
+
+- `vectorize` takes the individual records as input, group them by the specified "time", "district", and "type" dimensions, take the averages within each group, and stack the results into vectors and matrices that can be used in the multiple error components regression;
+- `ec_reg` takes the "vectorized" data and performs maximum likelihood estimation of the multivariate error components model;
+- `reg_psi` takes a step further and allows one of the regressors to be transformed by a single-parameter function, with a given parameter $\psi$;
+- `opt_psi` is a wrapper function around `reg_psi` that implements a grid search to find the optimal $\psi$. Given a list of candidate parameters $\psi$'s, it calls the function `reg_psi` for each value of $\psi$ on the list and records the loglikelihood value. The parameter corresponding to the highest value of loglikelihood is chosen as $\hat{\psi}$.
+
+
+
+
+# Replication of the tables and figures
+
+## Estimation of ETAS model
+
+The following code will be used to replicate the results of the ETAS model estimation. (As shown in Table 48 and Table 50 of _Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities: Data Documentation_). The estimation takes less than 1 minute.
+
+```{r etas-estimation, message=F, warning=F, eval=T}
+# estimation of ETAS model for each city
+# preparation of the earthquake catalogue
+eq_catalog <- EQcatalog(jma_data, t_start = 1970, t_end = 2015, depth = 100, mag_min = 4,
+                 origin = as.Date("1970-01-01"))
+# setting magnitude thresholds for each city
+magMin <- c(4.5, 4.5, 4.5, 4.5, 5)
+# starting value of the parameters
+init.params <- c(.1, .1, .5, 1.2, 1.1, 1/mean(eq_catalog$magnitude), 0)
+list.Est <- {}
+# estimate the ETAS model for each city
+sum.table <- data.frame(city = city_range$City, stringsAsFactors = F)
+for(i in 1:length(city_range$City)){
+  city <- city_range$City[i]
+  out <- etas_estim(eq_catalog, city = city, city_range = city_range, 
+                  magMin=magMin[i], params=init.params, 
+                  t0 = as.Date("1970-01-01"), tN = "2016-01-01")
+  list.Est[[i]] <- out
+  ks <- etas_test(out, plot = F)
+  sum.table$ks.pval[i] <- ks$p.val
+  sum.table$N[i] <- nrow(out$data)
+  mu <- out$params[1]
+  A <- out$params[2]
+  alpha <- out$params[3]
+  CC <- out$params[4]
+  p <- out$params[5]
+  K <- A*CC^p
+  beta <- alpha
+  sum.table$mu[i] <- mu
+  sum.table$K[i] <- K
+  sum.table$C[i] <- CC
+  sum.table$p[i] <- p
+  sum.table$beta[i] <- beta
+}
+
+```
+```{r, eval=T, echo=T, warning=F, message=F}
+kable(city_range %>% 
+      select(City, latMin, latMax, lngMin, lngMax) %>% 
+      arrange(factor(City, levels = c("Tokyo", "Osaka", 
+                                        "Nagoya", "Fukuoka", "Sapporo"))),
+      caption = "Spatial window of the earthquake catalog",
+      format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+
+kable(sum.table %>% 
+      arrange(factor(city, levels = c("Tokyo", "Osaka", 
+                                        "Nagoya", "Fukuoka", "Sapporo"))), 
+      caption = "ETAS estimation results for each city (estimated with magnitude 
+      threshold 4.5 for Osaka, Nagoya, Fukuoka, Sapporo and 5 for Tokyo)", 
+      digits=4, format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+
+
+```
+
+
+
+## Simulation of short-run earthquake probabilities
+
+The following code can be used to simulate the short-run earthquake probabilities. We used 30000 runs to generate the final similated probabilities, while each run takes about 24 hours for each city. The output of our simulation, "Xpsi-1.csv", is used as an input to the multivariate error components model for the rest of this paper. To continue the replication for this paper use the file "Xpsi-1.csv" in the "data" folder for the rest of this document.
+
+```{r echo=T, eval=F}
+# This file generates the additional vector of regressor XPsi, for given psi.
+library(PtProcess)
+library(R.utils)
+library(zoo)
+source('etas_funcs.R')
+
+# input arguments: number of simulations, which city, etc.
+psi <- 1
+Nsim <- 30000
+# i = 1, 2, 3, 4, 5 (index of the city)
+i <- 1
+
+# generate the time vector: 2006Q2-2015Q3
+q.start <- 2006.25
+q.end <- 2015.5
+time <- as.yearqtr(seq(q.start, q.end, 1/4))
+time.date <- gsub(" Q4", "-10-01",
+                  gsub(" Q3", "-07-01", 
+                       gsub(" Q2", "-04-01", 
+                            gsub(" Q1", "-01-01", time))))
+time.end <- gsub(" Q4", "-10-01",
+                 gsub(" Q3", "-07-01", 
+                      gsub(" Q2", "-04-01", 
+                           gsub(" Q1", "-01-01", as.yearqtr(q.end+1/4)))))
+  
+
+# range, estimated parameters and magnitude threshold for given city
+city_range_c <- city_range[i, ]
+city <- city_range_c$City
+list.Est_c <- list(list.Est[[i]])
+magMin_c <- magMin[i]
+origin <- as.Date("1970-01-01")
+Xpsi <- matrix(0, ncol = Nsim/10, nrow = length(time.date))
+tic <- Sys.time()
+
+for(n in 1:(Nsim/10)){
+  print(n)
+  results <- gen_Xpsi_city(Iter.val = 1, list.Est = list.Est_c,
+                         city_range = city_range_c,
+                         time = time.date, time.end = time.end, date.start = origin,
+                         threshold = 5.5, magMin = magMin_c, n.sim = 10)
+  Xpsi[1:length(time.date), n] <- as.numeric(unlist(results$threshold_5.5))
+
+}
+Sys.time() - tic
+
+Xpsi <- rowSums(Xpsi, na.rm = T)
+# store the generated probabilities
+# write.csv(Xpsi, paste("Xpsi", psi, city, Nsim, id, ".csv", sep="-"), row.names = F)
+
+```
+
+The following code can be used to replicate Figures 1 and 2 of the paper.
+
+```{r, fig.cap="Short run earthquake risk for Tokyo", eval=T}
+
+addlabel <- function(x, y, len, lab, dis = 0.03) {
+  arrows(
+    x0 = x,
+    y0 = y,
+    x1 = x,
+    y1 = y - len,
+    length = 0.08
+  )
+  text(
+    x = x,
+    y = y + dis,
+    labels = lab,
+    cex = 0.8
+  )
+}
+
+
+Xpsi1 <- read.table(
+  paste0(path, "/data/Xpsi-1.csv"),
+  header = TRUE,
+  sep = ",",
+  quote = "\"",
+  dec = ".",
+  stringsAsFactors = F
+)
+
+# short run probs
+date.start <- "1970-01-01"
+
+time <- c(
+  "2006 Q2",
+  "2006 Q3",
+  "2006 Q4",
+  paste0("2007 Q", 1:4),
+  paste0("2008 Q", 1:4),
+  paste0("2009 Q", 1:4),
+  paste0("2010 Q", 1:4),
+  paste0("2011 Q", 1:4),
+  paste0("2012 Q", 1:4),
+  paste0("2013 Q", 1:4),
+  paste0("2014 Q", 1:4),
+  "2015 Q1",
+  "2015 Q2",
+  "2015 Q3"
+)
+time1 <- gsub(" Q4", "-10-01",
+              gsub(" Q3", "-07-01",
+                   gsub(" Q2", "-04-01",
+                        gsub(" Q1", "-01-01", time))))
+dates.EQ <-
+  as.Date(
+    c(
+      "2006-11-15",
+      "2007-01-13",
+      "2007-03-25",
+      "2007-07-16",
+      "2008-06-14",
+      "2009-08-09",
+      "2009-08-11",
+      "2010-02-26",
+      "2010-12-21",
+      "2011-03-11",
+      "2012-01-01",
+      "2012-12-07",
+      "2013-10-26",
+      "2015-05-30"
+    )
+  )
+labels.EQ <- julian(dates.EQ,  origin = as.Date(date.start))
+text.EQ <- paste0("circle", 1:length(dates.EQ))
+names.EQ <- c(
+  "Kuril Islands, 8.3M_W",
+  "Kuril Islands, 8.1M_W",
+  "Noto Hanto, 6.9M_W",
+  "Chuetsu offshore, 6.6M_w",
+  "Iwate-Miyagi Nairiku, 6.9M_W",
+  "Izu Islands, 7.0M_W",
+  "Shizuoka, 6.6M_W",
+  "Ryukyu Islands, 7.0M_W",
+  "Bonin Islands, 7.4M_W",
+  "Tohoku, 9.1M_W",
+  "Izu Islands, 6.8M_W",
+  "Kamaishi, 7.3M_W",
+  "Off the east coast of Honshu, 7.1M_W",
+  "Bonin Islands, 7.8M_W"
+)
+
+
+Est <- list.Est[[5]]
+par(xpd = TRUE,
+    pty = 'm',
+    mar = c(5, 5, 2, 5))
+at <- seq(from = 1, by = 4, to = 38)
+ticks <- julian(as.Date(time1),  origin = as.Date(date.start))
+plot(
+  ticks,
+  Xpsi1$Tokyo,
+  type = "l",
+  ylim = c(0.25, 0.85),
+  lty = 2,
+  ylab = "90-days probabilities",
+  xlab = "time",
+  yaxt = 'n',
+  xaxt = 'n'
+)
+axis(
+  1,
+  at = julian(as.Date(time1),  origin = as.Date(date.start))[at],
+  labels = time[at],
+  cex.axis = 0.5
+)
+axis(2,
+     labels = c(0.2, 0.4, 0.6, 0.8),
+     at = c(0.2, 0.4, 0.6, 0.8))
+legend(
+  x = ticks[13] + 200,
+  y = 0.85,
+  legend = c("90-days probs, Tokyo", "ground intensity, Tokyo"),
+  cex = 0.8,
+  lty = c(2, 1) ,
+  xjust = 1,
+  yjust = 1,
+  text.width = strwidth("ground intensity, Tokyo")
+)
+
+addlabel(labels.EQ[13], 0.72, 0.12, '(5)')
+addlabel(labels.EQ[6], 0.55, 0.12, '(2)')
+addlabel(labels.EQ[10], 0.82, 0.05, '(3)')
+addlabel(labels.EQ[4], 0.55, 0.12, '(1)')
+addlabel(labels.EQ[11], 0.73, 0.12, '(4)')
+par(new = T)
+lambda_t <- ticks[1]:ticks[length(ticks)]
+lambda_y <-
+  etas_gif(data = Est$data,
+           evalpts = lambda_t,
+           param = Est$params)
+plot(
+  lambda_t,
+  log(lambda_y),
+  type = 'l',
+  lty = 1,
+  col = 'black',
+  axes = F,
+  xlab = NA,
+  ylab = NA,
+  ylim = c(-4.5, 10)
+)
+axis(
+  side = 4,
+  labels = c(-4, -2, 0, 2),
+  at = c(-4, -2, 0, 2)
+)
+mtext(side = 4,
+      line = 3,
+      '(log) ground intensity lambda(t)')
+
+```
+
+```{r, fig.cap="Short run earthquake risk for Nagoya", eval=T}
+par(xpd = TRUE,
+    pty = 'm',
+    mar = c(5, 5, 2, 5))
+at <- seq(from = 1, by = 4, to = 38)
+ticks <- julian(as.Date(time1),  origin = as.Date(date.start))
+plot(
+  ticks,
+  Xpsi1$Nagoya,
+  type = "l",
+  ylim = c(0.13, 0.2),
+  lty = 2,
+  ylab = "90-days probabilities",
+  xlab = "time",
+  yaxt = 'n',
+  xaxt = 'n'
+)
+axis(
+  1,
+  at = julian(as.Date(time1),  origin = as.Date(date.start))[at],
+  labels = time[at],
+  cex.axis = 0.5
+)
+axis(2,
+     labels = c(0.14, 0.16, 0.18, 0.2),
+     at = c(0.14, 0.16, 0.18, 0.2))
+
+
+legend(
+  x = ticks[13] + 250,
+  y = 0.198,
+  legend = c("90-days probs, Nagoya", "ground intensity, Nagoya"),
+  cex = 0.8,
+  lty = c(2, 1) ,
+  xjust = 1,
+  yjust = 1,
+  text.width = strwidth("ground intensity, Nagoya")
+)
+
+
+addlabel(labels.EQ[3], 0.16, 0.01, '(1)', dis = 0.003)
+addlabel(labels.EQ[7], 0.18, 0.01, '(2)', dis = 0.003)
+addlabel(labels.EQ[10], 0.185, 0.008, '(3)', dis = 0.003)
+
+
+par(new = T)
+Est <- list.Est[[2]]
+lambda_t <- ticks[1]:ticks[length(ticks)]
+lambda_y <-
+  etas_gif(data = Est$data,
+           evalpts = lambda_t,
+           param = Est$params)
+plot(
+  lambda_t,
+  log(lambda_y),
+  type = 'l',
+  lty = 1,
+  col = 'black',
+  axes = F,
+  xlab = NA,
+  ylab = NA,
+  ylim = c(-4.5, 5)
+)
+axis(
+  side = 4,
+  labels = c(-4, -3, -2, -1, 0),
+  at =  c(-4, -3, -2, -1, 0)
+)
+mtext(side = 4,
+      line = 3,
+      '(log) ground intensity lambda(t)')
+
+```
+
+
+## Housing dataset
+
+The following code can be used to replicate Table 1 of the paper.
+```{r, eval=T, echo=T}
+sum_df <- individual_data %>%
+  mutate(Ward = sapply(strsplit(as.character(Area.Ward.City), ','),
+                       "[", 2)) %>%
+  group_by(City) %>%
+  summarise(
+    Ward = length(unique(Ward)),
+    District = length(unique(Area.Ward.City)),
+    Land_building = sum(Type_LandBldg),
+    Land_only = sum(Type_LandOnly),
+    Condo = sum(Type_Condo),
+    Station = length(unique(Nearest.station.Name))
+  ) %>%
+  arrange(factor(City, levels = c(
+    "Tokyo", "Osaka",
+    "Nagoya", "Fukuoka", "Sapporo"
+  )))
+sum_df <-
+  rbind(sum_df, c("Total", colSums(sum_df %>% select(-City))))
+
+```
+```{r, eval=T, echo=F}
+kable(sum_df, caption = "Distribution of properties over cities, wards and districts", format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+
+```
+
+
+
+
+## Long-run earthquake intensities
+
+The following code can be used to replicate Table 2 of the paper.
+```{r, eval=T, echo=T}
+# descriptive statistics of the JSHIS earthquake probabilities
+sum_JSHIS_1 <- individual_data %>%
+  mutate(unique = !duplicated(Area.Ward.City)) %>%
+  filter(unique == 1) %>%
+  group_by(City) %>%
+  summarise(
+    mean = mean(JSHIS_I45),
+    min = min(JSHIS_I45),
+    q25 = quantile(JSHIS_I45, 0.25),
+    q50 = quantile(JSHIS_I45, 0.5),
+    q75 = quantile(JSHIS_I45, 0.75),
+    max = max(JSHIS_I45),
+    sd = sqrt(var(JSHIS_I45))
+  ) %>%
+  arrange(factor(City, levels = c(
+    "Tokyo", "Osaka",
+    "Nagoya", "Fukuoka", "Sapporo"
+  )))
+
+
+
+
+sum_JSHIS_2 <- individual_data %>%
+  mutate(unique = !duplicated(Area.Ward.City)) %>%
+  filter(unique == 1) %>%
+  group_by(City) %>%
+  summarise(
+    mean = mean(JSHIS_I55),
+    min = min(JSHIS_I55),
+    q25 = quantile(JSHIS_I55, 0.25),
+    q50 = quantile(JSHIS_I55, 0.5),
+    q75 = quantile(JSHIS_I55, 0.75),
+    max = max(JSHIS_I55),
+    sd = sqrt(var(JSHIS_I55))
+  ) %>%
+  arrange(factor(City, levels = c(
+    "Tokyo", "Osaka",
+    "Nagoya", "Fukuoka", "Sapporo"
+  )))
+
+  
+
+
+```
+
+```{r, eval=T, echo=F}
+kable(sum_JSHIS_1, caption = "Seizmic hazard probabilities per city, exceeding intensity level 5 lower, averaged over districts and time 2005-2014", digits=4, format="latex", booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+
+kable(sum_JSHIS_2, caption = "Seizmic hazard probabilities per city, exceeding intensity level 6 lower, averaged over districts and time 2005-2014", digits=4, format="latex", booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+  
+```
+
+
+## Main estimation results
+
+The following code can be used to replicate Table 3 of the paper. In the data preparation step, the `vectorize` function takes about 5 minutes to run for our dataset. For each model specification and each choice of $\psi$, the estimation takes around 1 - 1.5 hours. 
+
+`results_LRonly` (model with long run probabilities only), `results_LR_objSR` (model with long run probability and objective short run probability), and `results_base` (base model, with long run and short run probability) are data frames containing the estimation results (parameter estimates, standard errors and log likelihood values) as reported in the last three columns of Table 3.
+
+
+```{r, eval=F, echo=T}
+colName.i <- "Area.Ward.City"
+colName.t <- "t"
+colName.p <- "Type"
+# names of the columns of regressors X 
+Xnames_all <- c("constant_LandBldg", "constant_LandOnly", "constant_Condo",
+                 "distance.num", "area.m2.num", "total.floor.area.m2.num",
+                 "building.age", 
+                 "LandBldg_RC", "LandBldg_S", "LandBldg_W",
+                 "built.1981_2000", "built.after2000" ,
+                 "Urban_Control", 
+                "RC", "SRC", "RC_SRC", "S", "W", 
+                "LU_Resid", "LU_Comm", "LU_Industr",
+                "Region_Residential", "Region_Commercial", 
+                "Region_Industrial","Region_PotResidential",
+                 "max.building.coverage.ratio", "max.floor.area.ratio",
+                 "City_Fukuoka", "City_Nagoya", "City_Osaka", "City_Sapporo",
+                 "log.nGDP", "log.CPI",  "Int_rate", "log.TOPIX",
+                 "PctImmi", "Ncrime", "PctUnemploy", "PctExec",
+                "PctForeign", "Ndaycare", "Nkindergtn", "Nagedhome","Nhosp", 
+                 "Nlargeretail", "Ndepstore",      
+                 "JSHIS_I45", "JSHIS_I55", "JSHIS_I45_55",
+                "JSHIS_I45_station", "JSHIS_I55_station",
+                "JSHIS_I45_55_station",
+                "Xpsi_obj",
+                "Q1", "Q2", "Q3", "Q4", "Q123", 
+                "Q_after_Fukushima", "age_W")
+
+Xnames_base <- c("constant_LandBldg", "constant_LandOnly", "constant_Condo",
+            "distance.num", "area.m2.num", "total.floor.area.m2.num",
+            "building.age", 
+            "LandBldg_RC", "LandBldg_S", "LandBldg_W",
+            "built.1981_2000", "built.after2000" ,
+            "Urban_Control",  
+            "max.building.coverage.ratio", "max.floor.area.ratio",
+            "City_Fukuoka", "City_Nagoya", "City_Osaka", "City_Sapporo",
+            "log.nGDP", "log.CPI",  
+            "PctImmi", "Ncrime", "PctUnemploy", "PctExec",
+            "JSHIS_I45_55", "JSHIS_I55", "Xpsi")
+
+# generate averages of y, X and cell counts H
+data_vec <- mvecr::vectorize(data = individual_data, colName.i = colName.i, 
+                 colName.t = colName.t, colName.p = colName.p,
+                 colName.y = "log.price",
+                 colName.X = Xnames_all)
+# retrieve each component of the results
+H <- data_vec$H
+y <- data_vec$y
+X <- data_vec$X
+district <- data_vec$district
+time <- data_vec$time
+type <- data_vec$type
+# use 2-error error structure 
+include_2error <- c(rep(1, 6), rep(0,6), rep(1,6))
+# choose initial parameters for optimization
+initpar <- c(-1.5, 0.1, -0.1, -2.1, -0.01, -1.1,
+             -2.5, 0.02, -0.1, -3.5,  0.1, -3.5,
+             -0.9, 0.008, 0.005, -0.9, 0.01, -0.9)
+
+```
+
+```{r, echo=T, eval=F}
+
+# results for the model with only long run risk variables (model 1)
+results_LRonly <- mvecr::ec_reg(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", 
+  district = district, time = time, type = type,
+  var = setdiff(Xnames_base, "Xpsi"),
+  par.include = include_2error,
+  par.init = initpar)
+# write.csv(results_LRonly, paste0(path, '/output/results_long_run_only_model.csv'))
+# results for the model when the short run risk variable is objective (model 2)
+results_LR_objSR <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 1, 
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = Xnames_base,
+  par.include = include_2error,
+  par.init = initpar)
+# write.csv(results_LR_objSR, paste0(path, '/output/results_objective_short_run_model.csv'))
+
+# results for the base model (model 3)
+results_base <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.74, 
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = Xnames_base,
+  par.include = include_2error,
+  par.init = initpar)
+# write.csv(results_base, paste0(path, '/output/results_base_model_psi3.74.csv'))
+
+
+
+```
+
+
+The results of the three models estimated using the code above can be used to replicate Table 3.
+
+```{r, eval=T, echo=F}
+key_vars <- c("area.m2.num", "total.floor.area.m2.num", "distance.num", "building.age",
+              "JSHIS_I45_55", "JSHIS_I55", "Xpsi", "psi")
+vars_order <- c("constant_LandBldg", "constant_LandOnly", "constant_Condo",
+                "City_Osaka", "City_Nagoya", "City_Fukuoka", "City_Sapporo",
+                "PctImmi", "Ncrime", "PctUnemploy", "PctExec",
+                "log.nGDP", "log.CPI",
+                 "area.m2.num", "total.floor.area.m2.num",
+                "distance.num", "building.age",
+                "built.1981_2000", "built.after2000",
+                "LandBldg_RC", "LandBldg_S", "LandBldg_W",
+                "Urban_Control", "max.building.coverage.ratio", "max.floor.area.ratio",
+                "JSHIS_I45_55", "JSHIS_I55", "Xpsi", "psi")
+
+results_LRonly <- read.csv(paste0(path, "/output/results_long_run_only_model.csv"), 
+                           stringsAsFactors = F)
+results_LR_objSR <- read.csv(paste0(path, "/output/results_objective_short_run_model.csv"), 
+                             stringsAsFactors = F)
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), 
+                         stringsAsFactors = F)
+
+results_LRonly <- results_LRonly %>%  
+  arrange(factor(var, vars_order)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_LR_objSR <- results_LR_objSR  %>%  
+  arrange(factor(var, vars_order)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_base <- results_base  %>%  
+  arrange(factor(var, vars_order)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+
+# psi estimate is accurate up to 2 decimals
+for(i in c("results_base")){
+  df <- get(i)
+  df$coef[df$var=='psi'] <- gsub('.{2}$', '', df$coef[df$var=='psi'])
+  assign(i, df)
+
+}
+
+tab_3 <- data.frame(var = vars_order, 
+                    LRonly_coef = c(results_LRonly$coef, '-', '-'),
+                    LRonly_tstat = c(results_LRonly$t.stat, '-', '-'),
+                    LR_objSR_coef = c(results_LR_objSR$coef),
+                    LR_objSR_tstat = c(results_LR_objSR$t.stat),
+                    base_coef = results_base$coef,
+                    base_tstat = results_base$t.stat,
+                    stringsAsFactors = FALSE)
+
+tab_3 <- rbind(tab_3, c('Delta logL', 
+                        round(results_base$negLL[1] - results_LRonly$negLL[1], 2), '-',
+                        round(results_base$negLL[1] - results_LR_objSR$negLL[1], 2), '-', 
+                        '-', '-'))
+
+```
+```{r, eval=F, echo=F}
+
+kable(tab_3, caption='Estimation results under various risk assumptions', format="latex", booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+
+
+```
+
+
+Note that in the base model (and in the sensitivity analyses in later sections) in order to find the value of $\psi$ that maximizes likelihood,
+we perform a grid search over possible values of $\psi$ between 0.1 to 10.
+Refine the grid by each iteration to find the final value (precise up to 2 digits). The following code can be used to replicate this process (computation time depends on the length of the list of candidate parameters. For each given value of $\psi$ on the list, the program takes around 1 - 1.5 hours). 
+
+
+```{r, eval=F, echo=T}
+
+# list_psis <- seq(from = 0.5, to = 10, by = 0.5)
+list_psis <- seq(from = 3.6, to = 3.8, by = 0.01)
+psi_optim <- mvecr::opt_psi(
+  data.X=X, data.y=y, data.H=H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",                          
+  list.psi = list_psis, 
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = Xnames_base,
+  par.include = include_2error,
+  par.init = initpar)
+# final estimate: psi_estimate = 3.74 maximizes likelihood
+
+```
+
+
+The following code can be used to replicate Figure 3 of the paper.
+
+```{r, fig.cap="Estimated probability weighting of short-run probabilities, Prelec probability weighting function, psi= 3.74", eval=T, echo=T}
+
+stepsize <- 1e-3
+p <- seq(from = 0 + stepsize, to = 1, by = stepsize)
+
+par(xpd=T, xaxs='i',yaxs='i', pty='s')
+psi_estimate <- 3.74
+plot(p, mvecr::prelec(p, psi_estimate), type = "l", lty=1, 
+     xlab='objective probabilities', 
+     ylab = "distorted probabilities", 
+     ylim = c(0,1), xlim=c(0,1),
+     lwd=0.8, col='black',  asp=1, xaxt='n', yaxt='n')
+axis(2,
+     labels = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+     at = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+axis(1,
+     labels = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+     at = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+lines(p, mvecr::prelec(p, 1), lty=3, lwd=0.5, col='grey')
+
+
+```
+
+
+
+
+
+
+
+
+
+
+## Sensitivity analysis
+
+
+
+### Sensitivity to weighting functions and extension
+
+The following code can be used to replicate Table 4 of the paper.
+
+```{r, echo=T, eval=F}
+
+results_SR_TK <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t",  
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 1.40, 
+  transform.func = tversky, transform.gradient = Z_tversky,
+  district = district, time = time, type = type, 
+  var = Xnames_base,
+  par.include = include_2error,
+  par.init = initpar)
+
+# write.csv(results_SR_TK, paste0(path, '/output/results_SR_TK_psi1.40.csv'))
+
+
+Xnames_LR <- c(setdiff(Xnames_base, c("JSHIS_I45_55", "JSHIS_I55")),
+               "J45_55_sub", "J55_sub")
+results_LR_prelec <- mvecr::reg_gamma_psi(data.X=X, data.y=y, data.H=H,
+                            colName.i = colName.i, 
+                            colName.t = colName.t,  
+                            colName.p = colName.p,
+                            gamma = 0.17, psi = 3.78, 
+                            method_1 = "p", method_2 = "p", 
+                            district, time, type,
+                            var = Xnames_LR, 
+                            par.include = include_2error,
+                            par.init = initpar)
+# write.csv(results_LR_prelec, paste0(path, '/output/results_LR_prelec_psi3.78_gamma0.17.csv'))
+
+
+resukts_LR_TK <- mvecr::reg_gamma_psi(data.X=X, data.y=y, data.H=H,
+                            colName.i = colName.i, 
+                            colName.t = colName.t,  
+                            colName.p = colName.p,
+                            gamma = 0.32, psi = 3.77, 
+                            method_1 = "t", method_2 = "p", 
+                            district, time, type,
+                            var = Xnames_LR, 
+                            par.include = include_2error,
+                            par.init = initpar)
+# write.csv(resukts_LR_TK, paste0(path, '/output/results_LR_TK_psi3.77_gamma0.32.csv'))
+
+
+```
+
+
+
+
+```{r, echo=F, eval=T}
+
+key_vars_gamma <-  c("area.m2.num", "total.floor.area.m2.num", "distance.num", "building.age",
+              "JSHIS_I45_55", "JSHIS_I55", "J45_55_sub", "J55_sub", "Xpsi", "psi", "gamma")
+
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), stringsAsFactors = F)
+results_SR_TK <- read.csv(paste0(path, "/output/results_SR_TK_psi1.40.csv"), stringsAsFactors = F)
+results_LR_prelec <- read.csv(paste0(path, "/output/results_LR_prelec_psi3.78_gamma0.17.csv"), stringsAsFactors = F)
+results_LR_TK <- read.csv(paste0(path, "/output/results_LR_TK_psi3.77_gamma0.32.csv"), stringsAsFactors = F)
+
+
+for(i in c("results_base", "results_SR_TK", "results_LR_prelec", "results_LR_TK")){
+  df <- get(i)
+  assign(paste0(i, "_LL"), -df$negLL[1])
+  }
+
+
+
+results_base <- results_base %>%  
+  filter(var %in% key_vars_gamma) %>% 
+  arrange(factor(var, key_vars_gamma)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_SR_TK <- results_SR_TK %>%  
+  filter(var %in% key_vars_gamma) %>% 
+  arrange(factor(var, key_vars_gamma)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_LR_prelec <- results_LR_prelec %>%  
+  filter(var %in% key_vars_gamma) %>% 
+  arrange(factor(var, key_vars_gamma)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_LR_TK <- results_LR_TK %>%  
+  filter(var %in% key_vars_gamma) %>% 
+  arrange(factor(var, key_vars_gamma)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+
+
+
+for(i in c("results_base", "results_SR_TK", "results_LR_prelec", "results_LR_TK")){
+  df <- get(i)
+  df$coef[df$var=='psi'] <- gsub('.{2}$', '', df$coef[df$var=='psi'])
+  if("gamma" %in% df$var){
+  df$coef[df$var=='gamma'] <- gsub('.{2}$', '', df$coef[df$var=='gamma'])
+  }
+  assign(i, df)
+
+}
+
+tab_4 <- data.frame(var = c(key_vars, "gamma"), 
+                    base_coef = c(results_base$coef, "-"),
+                    base_tstat = c(results_base$t.stat, "-"),
+                    SR_TK_coef = c(results_SR_TK$coef, "-"),
+                    SR_TK_tstat = c(results_SR_TK$t.stat, "-"),
+                    LR_prelec_coef = results_LR_prelec$coef,
+                    LR_prelec_tstat = results_LR_prelec$t.stat,
+                    LR_TK_coef = results_LR_TK$coef,
+                    LR_TK_tstat = results_LR_TK$t.stat,
+                    stringsAsFactors = FALSE)
+
+tab_4 <- rbind(tab_4, c('Delta logL', 
+                        "-", "-",
+                        round(results_SR_TK_LL - results_base_LL, 2), '-',
+                        round(results_LR_prelec_LL - results_base_LL, 2), '-', 
+                        round(results_LR_TK_LL - results_base_LL, 2), '-'))
+
+kable(tab_4, caption='Sensitivity and extension: probability weighting function', format='latex', booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+
+```
+
+
+The following code can be used to replicate Figure 4 of the paper.
+
+
+```{r, fig.cap="Implied probability weighting functions of long run and short run earthquake risk", eval=T, echo=T}
+par(
+  xpd = T,
+  xaxs = 'i',
+  yaxs = 'i',
+  pty = 's'
+)
+psi <- 3.77
+gamma <- 0.32
+plot(
+  p,
+  tversky(p, gamma),
+  type = "l",
+  lty = 2,
+  xlab = 'objective probabilities',
+  ylim = c(0, 1),
+  xlim = c(0, 1),
+  ylab = "distorted probabilities",
+  lwd = 0.8,
+  col = 'blue',
+  asp = 1,
+  xaxt = 'n',
+  yaxt = 'n'
+)
+axis(2,
+     labels = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+     at = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+axis(1,
+     labels = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+     at = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+lines(p,
+      prelec(p, 1),
+      lty = 3,
+      lwd = 0.5,
+      col = 'grey')
+lines(p,
+      prelec(p, psi),
+      lty = 1,
+      lwd = 0.8,
+      col = 'black')
+legend(
+  x = 0.35,
+  y = 0.9,
+  legend = c("short run", "long run"),
+  #text.width = strwidth("100"),
+  col = c('black', 'blue'),
+  lty = c(1:2) ,
+  xjust = 1,
+  yjust = 1,
+  ncol = 1
+)
+
+```
+
+
+
+### Sensitivity to ward and economic indicators
+
+The following code can be used to replicate Table B1 of the supplementary material. Note that as in the section "Main estimation results", the final estimated $\psi$ will be obtained by the following functions. In order to replicate the process of using grid search to arrive at the optimal $\psi$, use the wrapper function $opt\_psi$. For each value of $\psi$, the estimation takes around 1 - 1.5 hours.
+
+```{r, eval = F, echo=T}
+
+Xnames_Attr <- c(Xnames_base, "PctForeign", "Nhosp", "Ndaycare", 
+                 "Nkindergtn", "Nagedhome", "Ndepstore", "Nlargeretail")
+
+results_attr <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t",  
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.75, 
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = Xnames_Attr,
+  par.include = include_2error,
+  par.init = initpar)
+# write.csv(results_attr, paste0(path, '/output/results_attr_psi3.75.csv'))
+
+results_noGDP <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t",  
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 2.63, 
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = setdiff(Xnames_base, "log.nGDP"),
+  par.include = include_2error,
+  par.init = initpar)
+# write.csv(results_noGDP, paste0(path, '/output/results_noGDP_psi2.63.csv'))
+
+
+```
+
+```{r, eval=T, echo=F}
+
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), stringsAsFactors = F)
+results_attr <- read.csv(paste0(path, "/output/results_attr_psi3.75.csv"), stringsAsFactors = F)
+results_noGDP <- read.csv(paste0(path, "/output/results_noGDP_psi2.63.csv"), stringsAsFactors = F)
+
+
+for(i in c("results_base", "results_attr", "results_noGDP")){
+  df <- get(i)
+  assign(paste0(i, "_LL"), -df$negLL[1])
+  }
+
+
+
+results_base <- results_base %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_attr <- results_attr %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_noGDP <- results_noGDP %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+
+
+for(i in  c("results_base", "results_attr", "results_noGDP")){
+  df <- get(i)
+  df$coef[df$var=='psi'] <- gsub('.{2}$', '', df$coef[df$var=='psi'])
+  assign(i, df)
+
+}
+
+
+tab_B1 <- data.frame(var = key_vars, 
+                    base_coef = results_base$coef,
+                    base_tstat = results_base$t.stat,
+                    attr_coef = results_attr$coef,
+                    attr_tstat = results_attr$t.stat,
+                    noGDP_coef = results_noGDP$coef,
+                    noGDP_tstat = results_noGDP$t.stat, stringsAsFactors = FALSE)
+tab_B1 <- rbind(tab_B1, c('Delta logL', 
+                        "-", "-",
+                        round(results_attr_LL - results_base_LL, 2), '-',
+                        round(results_noGDP_LL - results_base_LL, 2), '-'))
+
+kable(tab_B1, caption='Sensitivity - ward attractiveness and economic indicators', format='latex', booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+
+
+```
+
+
+
+### Sensitivity to property characteristics
+
+The following code can be used to replicate Table B2 of the paper.
+
+```{r, eval=F, echo=T}
+
+
+results_UC <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t",  
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.72,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = setdiff(Xnames_base, "Urban_Control"),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_UC, paste0(path, '/output/results_UC_psi3.72.csv'))
+results_BS <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.89,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = setdiff(
+    Xnames_base, c("LandBldg_RC", "LandBldg_S", "LandBldg_W")),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_BS, paste0(path, '/output/results_BS_psi3.89.csv'))
+
+results_LandUse <-
+  mvecr::reg_psi(
+    data.X = X, data.y = y, data.H = H,
+    colName.i = "Area.Ward.City", colName.t = "t", 
+    colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+    psi = 3.76,
+    transform.func = prelec, transform.gradient = Z_prelec,
+    district = district, time = time, type = type,
+    var = c(Xnames_base, "LU_Resid", "LU_Comm", "LU_Industr"),
+    par.include = include_2error,
+    par.init = initpar
+  )
+# write.csv(results_LandUse, paste0(path, '/output/results_LandUse_psi3.76.csv'))
+
+
+
+```
+
+
+```{r, eval=T, echo=F}
+
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), stringsAsFactors = F)
+results_UC <- read.csv(paste0(path, "/output/results_UC_psi3.72.csv"), stringsAsFactors = F)
+results_BS <- read.csv(paste0(path, "/output/results_BS_psi3.89.csv"), stringsAsFactors = F)
+results_LandUse <- read.csv(paste0(path, "/output/results_LandUse_psi3.76.csv"), stringsAsFactors = F)
+
+
+for(i in c("results_base", "results_UC", "results_BS", "results_LandUse")){
+  df <- get(i)
+  assign(paste0(i, "_LL"), -df$negLL[1])
+  }
+
+
+
+results_base <- results_base %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_UC <- results_UC %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_BS <- results_BS %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_LandUse <- results_LandUse %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+
+
+for(i in  c("results_base", "results_UC", "results_BS", "results_LandUse")){
+  df <- get(i)
+  df$coef[df$var=='psi'] <- gsub('.{2}$', '', df$coef[df$var=='psi'])
+  assign(i, df)
+
+}
+
+
+tab_B2 <- data.frame(var = key_vars, 
+                    base_coef = results_base$coef,
+                    base_tstat = results_base$t.stat,
+                    UC_coef = results_UC$coef,
+                    UC_tstat = results_UC$t.stat,
+                    BS_coef = results_BS$coef,
+                    BS_tstat = results_BS$t.stat, 
+                    LandUse_coef = results_LandUse$coef,
+                    LandUse_tstat = results_LandUse$t.stat,
+                    stringsAsFactors = FALSE)
+tab_B2 <- rbind(tab_B2, c('Delta logL', 
+                        "-", "-",
+                        round(results_UC_LL - results_base_LL, 2), '-',
+                        round(results_BS_LL - results_base_LL, 2), '-',
+                        round(results_LandUse_LL - results_base_LL, 2), '-'))
+
+kable(tab_B2, caption = 'Sensitivity - property characteristics', format='latex', booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+```
+
+
+
+### Sensitivity to removing one of the cities
+
+The following code can be used to replicate Table B3 of the supplementary material.
+
+```{r, eval=F, echo=T}
+# generate averages of y, X and cell counts H, removing Tokyo
+data_vec_noTokyo <- mvecr::vectorize(
+  data = individual_data %>%
+    filter(City_Tokyo == 0),
+  colName.i = colName.i,
+  colName.t = colName.t,
+  colName.p = colName.p,
+  colName.y = "log.price",
+  colName.X = Xnames_all
+)
+# retrieve each component of the results
+H_noTokyo <- data_vec_noTokyo$H
+y_noTokyo <- data_vec_noTokyo$y
+X_noTokyo <- data_vec_noTokyo$X
+district_noTokyo <- data_vec_noTokyo$district
+time_noTokyo <- data_vec_noTokyo$time
+type_noTokyo <- data_vec_noTokyo$type
+
+# generate averages of y, X and cell counts H, removing Osaka
+data_vec_noOsaka <- mvecr::vectorize(
+  data = individual_data %>%
+    filter(City_Osaka == 0),
+  colName.i = colName.i,
+  colName.t = colName.t,
+  colName.p = colName.p,
+  colName.y = "log.price",
+  colName.X = Xnames_all
+)
+# retrieve each component of the results
+H_noOsaka <- data_vec_noOsaka$H
+y_noOsaka <- data_vec_noOsaka$y
+X_noOsaka <- data_vec_noOsaka$X
+district_noOsaka <- data_vec_noOsaka$district
+time_noOsaka <- data_vec_noOsaka$time
+type_noOsaka <- data_vec_noOsaka$type
+
+# generate averages of y, X and cell counts H, removing Nagoya
+data_vec_noNagoya <- mvecr::vectorize(
+  data = individual_data %>%
+    filter(City_Nagoya == 0),
+  colName.i = colName.i,
+  colName.t = colName.t,
+  colName.p = colName.p,
+  colName.y = "log.price",
+  colName.X = Xnames_all
+)
+# retrieve each component of the results
+H_noNagoya <- data_vec_noNagoya$H
+y_noNagoya <- data_vec_noNagoya$y
+X_noNagoya <- data_vec_noNagoya$X
+district_noNagoya <- data_vec_noNagoya$district
+time_noNagoya <- data_vec_noNagoya$time
+type_noNagoya <- data_vec_noNagoya$type
+
+
+results_noTokyo <- mvecr::reg_psi(
+  data.X = X_noTokyo, data.y = y_noTokyo, data.H = H_noTokyo,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 1.9,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district_noTokyo,
+  time = time_noTokyo,
+  type = type_noTokyo,
+  var = setdiff(Xnames_base, "City_Osaka"),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_noTokyo, paste0(path, '/output/results_noTokyo_psi1.9.csv'))
+
+
+results_noNagoya <- mvecr::reg_psi(
+  data.X = X_noNagoya, data.y = y_noNagoya, data.H = H_noNagoya,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 4.11,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district_noNagoya,
+  time = time_noNagoya,
+  type = type_noNagoya,
+  var = setdiff(Xnames_base, "City_Nagoya"),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_noNagoya, paste0(path, '/output/results_noNagoya_psi4.11.csv'))
+
+results_noOsaka <- mvecr::reg_psi(
+  data.X = X_noOsaka, data.y = y_noOsaka, data.H = H_noOsaka,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 4.04,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district_noOsaka,
+  time = time_noOsaka,
+  type = type_noOsaka,
+  var = setdiff(Xnames_base, "City_Osaka"),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_noOsaka, paste0(path, '/output/results_noOsaka_psi4.04.csv'))
+
+```
+
+
+```{r, eval=T, echo=F}
+
+results_noTokyo <- read.csv(paste0(path, "/output/results_noTokyo_psi1.9.csv"), stringsAsFactors = F)
+results_noNagoya <- read.csv(paste0(path, "/output/results_noNagoya_psi4.11.csv"), stringsAsFactors = F)
+results_noOsaka <- read.csv(paste0(path, "/output/results_noOsaka_psi4.04.csv"), stringsAsFactors = F)
+
+
+for(i in c("results_noTokyo", "results_noNagoya", "results_noOsaka")){
+  df <- get(i)
+  assign(paste0(i, "_LL"), -df$negLL[1])
+  }
+
+
+
+results_noTokyo <- results_noTokyo %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_noNagoya <- results_noNagoya %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_noOsaka <- results_noOsaka %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+
+
+for(i in c("results_noTokyo", "results_noNagoya", "results_noOsaka")){
+  df <- get(i)
+  df$coef[df$var=='psi'] <- gsub('.{2}$', '', df$coef[df$var=='psi'])
+  assign(i, df)
+
+}
+
+
+tab_B3 <- data.frame(var = key_vars, 
+                    noTokyo_coef = results_noTokyo$coef,
+                    noTokyo_tstat = results_noTokyo$t.stat,
+                    noOsaka_coef = results_noOsaka$coef,
+                    noOsaka_tstat = results_noOsaka$t.stat,
+                    noNagoya_coef = results_noNagoya$coef,
+                    noNagoya_tstat = results_noNagoya$t.stat, stringsAsFactors = FALSE)
+
+kable(tab_B3, caption='Sensitivity - removing one city', format='latex', booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+
+```
+
+
+
+
+
+
+
+### Sensitivity to quarter dummies
+
+The following code can be used to replicate Table B4 of the supplementary material.
+
+```{r, eval=F, echo=T}
+
+
+
+results_Q123 <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 4.56,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = c(Xnames_base, "Q1", "Q2", "Q3"),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_Q123, paste0(path, '/output/results_Q123_psi4.56.csv'))
+
+results_Q4 <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.89,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = c(Xnames_base, "Q4"),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_Q4, paste0(path, '/output/results_Q4_psi3.89.csv'))
+
+results_Tohoku <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.27,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = c(Xnames_base, "Q_after_Fukushima"),
+  par.include = include_2error,
+  par.init = initpar
+)
+# write.csv(results_Tohoku, paste0(path, '/output/results_Tohoku_psi3.27.csv'))
+
+```
+
+
+
+```{r, eval=T, echo=F}
+
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), stringsAsFactors = F)
+results_Q123 <- read.csv(paste0(path, "/output/results_Q123_psi4.56.csv"), stringsAsFactors = F)
+results_Q4 <- read.csv(paste0(path, "/output/results_Q4_psi3.89.csv"), stringsAsFactors = F)
+results_Tohoku <- read.csv(paste0(path, "/output/results_Tohoku_psi3.27.csv"), stringsAsFactors = F)
+
+
+for(i in c("results_base", "results_Q123", "results_Q4", "results_Tohoku")){
+  df <- get(i)
+  assign(paste0(i, "_LL"), -df$negLL[1])
+  }
+
+
+
+results_base <- results_base %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_Q123 <- results_Q123 %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_Q4 <- results_Q4 %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_Tohoku <- results_Tohoku %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+
+
+for(i in  c("results_base", "results_Q123", "results_Q4", "results_Tohoku")){
+  df <- get(i)
+  df$coef[df$var=='psi'] <- gsub('.{2}$', '', df$coef[df$var=='psi'])
+  assign(i, df)
+
+}
+
+
+tab_B4 <- data.frame(var = key_vars, 
+                    base_coef = results_base$coef,
+                    base_tstat = results_base$t.stat,
+                    Q123_coef = results_Q123$coef,
+                    Q123_tstat = results_Q123$t.stat,
+                    Q4_coef = results_Q4$coef,
+                    Q4_tstat = results_Q4$t.stat, 
+                    Tohoku_coef = results_Tohoku$coef,
+                    Tohoku_tstat = results_Tohoku$t.stat,
+                    stringsAsFactors = FALSE)
+tab_B4 <- rbind(tab_B4, c('Delta logL', 
+                        "-", "-",
+                        round(results_Q123_LL - results_base_LL, 2), '-',
+                        round(results_Q4_LL - results_base_LL, 2), '-',
+                        round(results_Tohoku_LL - results_base_LL, 2), '-'))
+
+kable(tab_B4, caption = 'Sensitivity - quarters and Tohoku dummy', format='latex', booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+```
+
+
+### Sensitivity to stochasticity and station versus district 
+
+The following code can be used to replicate Table B5 of the supplementary material. The regression involving 3 error components need around 3 - 4 hours to run. The regression with the station as district needs 40 - 60 minutes.
+
+```{r, eval=F, echo=T}
+include_3error <- rep(1, 18)
+results_3error <- mvecr::reg_psi(
+  data.X = X, data.y = y, data.H = H,
+  colName.i = "Area.Ward.City", colName.t = "t", 
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.52,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = district, time = time, type = type,
+  var = Xnames_base,
+  par.include = include_3error,
+  par.init = initpar
+)
+# write.csv(results_3error, paste0(path, '/output/results_3error_psi3.52.csv'))
+
+
+Xnames_station <- gsub("JSHIS_I55", "JSHIS_I55_station",
+                       gsub("JSHIS_I45_55",
+                       "JSHIS_I45_55_station",
+                       Xnames_base))
+
+data_vec_station <- mvecr::vectorize(
+  data = individual_data,
+  colName.i = "Station.City",
+  colName.t = "t",
+  colName.p = "Type",
+  colName.y = "log.price",
+  colName.X = Xnames_all
+)
+# retrieve each component of the results
+H_station <- data_vec_station$H
+y_station <- data_vec_station$y
+X_station <- data_vec_station$X
+station <- data_vec_station$district
+time_station <- data_vec_station$time
+type_station <- data_vec_station$type
+
+results_station <- mvecr::reg_psi(
+  data.X = X_station, data.y = y_station, data.H = H_station,
+  colName.i = "Station.City", colName.t = "t",
+  colName.p = "Type", colName.Xpsi = "Xpsi_obj",
+  psi = 3.41,
+  transform.func = prelec, transform.gradient = Z_prelec,
+  district = station, time = time_station, type = type_station,
+  var = Xnames_station,
+  par.include = include_2error,
+  par.init = initpar
+)
+
+# write.csv(results_station, paste0(path, '/output/results_station_psi3.41.csv'))
+
+```
+
+
+
+<br>
+
+```{r, eval=T, echo=F}
+
+key_vars_station <- c("area.m2.num", "total.floor.area.m2.num", "distance.num", "building.age",
+              "JSHIS_I45_55_station", "JSHIS_I55_station", "Xpsi", "psi")
+
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), 
+                         stringsAsFactors = F)
+results_3error <- read.csv(paste0(path, "/output/results_3error_psi3.52.csv"), 
+                           stringsAsFactors = F)
+results_station <- read.csv(paste0(path, "/output/results_station_psi3.41.csv"),
+                            stringsAsFactors = F)
+
+
+for(i in c("results_base", "results_3error", "results_station")){
+  df <- get(i)
+  assign(paste0(i, "_LL"), -df$negLL[1])
+}
+
+
+
+results_base <- results_base %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_3error <- results_3error %>%  
+  filter(var %in% key_vars) %>% 
+  arrange(factor(var, key_vars)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+results_station <- results_station %>%  
+  filter(var %in% key_vars_station) %>% 
+  arrange(factor(var, key_vars_station)) %>% 
+  mutate_at(
+    c('coef', 't.stat'), formatC, format = "f", digits = 4)
+
+
+for(i in  c("results_base", "results_3error", "results_station")){
+  df <- get(i)
+  df$coef[df$var=='psi'] <- gsub('.{2}$', '', df$coef[df$var=='psi'])
+  assign(i, df)
+
+}
+
+
+tab_B5 <- data.frame(var = key_vars, 
+                    base_coef = results_base$coef,
+                    base_tstat = results_base$t.stat,
+                    three_error_coef = results_3error$coef,
+                    three_error_tstat = results_3error$t.stat,
+                    station_coef = results_station$coef,
+                    station_tstat = results_station$t.stat, 
+                    stringsAsFactors = FALSE)
+tab_B5 <- rbind(tab_B5, c('Delta logL', 
+                        "-", "-",
+                        round(results_3error_LL - results_base_LL, 2), '-',
+                        "", ''))
+
+```
+
+```{r, eval=T, echo=F}
+
+kable(tab_B5, caption = 'Sensitivity - stochasticity and station versus district', 
+      format='latex', booktabs=TRUE)%>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+```
+
+
+The following code can be used to replicate the error matrices on page 9 of the supplementary material.
+
+
+```{r, eval=T, echo=T}
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), 
+                         stringsAsFactors = F)
+results_3error <- read.csv(paste0(path, "/output/results_3error_psi3.52.csv"), 
+                           stringsAsFactors = F)
+
+# two error components: sigma_zeta and sigma_epsilon
+include_2error <- c(rep(1, 6), rep(0,6), rep(1,6))
+# length of type
+p <- 3
+par_2error <- results_base$param_est[1:sum(include_2error==1)]
+tmp <- matrix(0, p, p)
+L.zeta <- tmp
+L.zeta[lower.tri(tmp, diag = T)] <- par_2error[1:(p*(p+1)/2)]
+diag(L.zeta) <- exp(diag(L.zeta))
+sigmazeta_2error <-  tcrossprod(L.zeta)
+
+L.eps <- tmp
+L.eps[lower.tri(tmp, diag = T)] <- par_2error[(p*(p+1)/2+1):(2*(p*(p+1)/2))]
+diag(L.eps) <- exp(diag(L.eps))
+sigmaeps_2error <- tcrossprod(L.eps)
+
+# three error components:  sigma_zeta, sigma_eta, and sigma_epsilon
+include_3error <- rep(1, 18)
+# length of type
+p <- 3
+par_3error <- results_3error$param_est[1:sum(include_3error==1)]
+tmp <- matrix(0, p, p)
+L.zeta <- tmp
+L.zeta[lower.tri(tmp, diag = T)] <- par_3error[1:(p*(p+1)/2)]
+diag(L.zeta) <- exp(diag(L.zeta))
+sigmazeta_3error <-  tcrossprod(L.zeta)
+
+L.eta <- tmp
+L.eta[lower.tri(tmp, diag = T)] <- par_3error[(p*(p+1)/2+1):(p*(p+1)/2*2)]
+diag(L.eta) <- exp(diag(L.eta))
+sigmaeta_3error <- tcrossprod(L.eta)
+
+L.eps <- tmp
+L.eps[lower.tri(tmp, diag = T)] <- par_3error[(p*(p+1)/2*2+1):(p*(p+1)/2*3)]
+diag(L.eps) <- exp(diag(L.eps))
+sigmaeps_3error <- tcrossprod(L.eps)
+
+```
+
+
+
+```{r, eval=T, echo=F}
+cap1 <- paste0('Estimated Sigma zeta under the base model, two error components, trace=', round(sum(diag(sigmazeta_2error)), 4))
+kable(sigmazeta_2error, caption=cap1, digits=4, format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+cap2 <- paste0('Estimated Sigma eps under the base model, two error components, trace=', round(sum(diag(sigmaeps_2error)), 4))
+kable(sigmaeps_2error, caption=cap2, digits=4, format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+
+```
+
+
+
+```{r, eval=T, echo=F}
+cap3a <- paste0('Estimated Sigma zeta under the base model, three error components, trace=', round(sum(diag(sigmazeta_3error)), 4))
+kable(sigmazeta_3error, caption=cap3a, digits=4, format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+cap3b <- paste0('Estimated Sigma eta under the base model, three error components, trace=', round(sum(diag(sigmaeta_3error)), 4))
+kable(sigmaeta_3error, caption=cap3b, digits=4, format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+cap3c <- paste0('Estimated Sigma eps under the base model, three error components, trace=', round(sum(diag(sigmaeps_3error)), 4))
+kable(sigmaeps_3error, caption=cap3c, digits=4, format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("HOLD_position"))
+
+```
+
+
+
+
+
+
+## Importance ordering and decomposition of risk premia
+
+The following code can be used to replicate Tables C6 of the supplementary material.
+
+```{r, eval=T, echo=T}
+results_base <- read.csv(paste0(path, "/output/results_base_model_psi3.74.csv"), 
+                         stringsAsFactors = F)
+psi_estimate <- 3.74
+
+# get list of coefficients
+coef <- as.data.frame(t(results_base$coef))
+colnames(coef) <- results_base$var
+# replace missing values with 0
+individual_data[is.na(individual_data)] <- 0
+# prepare data
+individual_data <- individual_data %>%
+  mutate(
+    Xpsi = mvecr::prelec(Xpsi_obj, psi = psi_estimate),
+    log.price.real = log.price - log.CPI,
+    City = factor(City,
+                  levels = c(
+                    'Tokyo', 'Osaka', 'Nagoya', 'Fukuoka', 'Sapporo'
+                  )),
+    Type = factor(
+      Type,
+      levels = c(
+        'Residential Land(Land and Building)',
+        'Residential Land(Land Only)',
+        'Pre-owned Condominiums, etc.'
+      )
+    ),
+    inf_constant = Type_LandBldg * coef$constant_LandBldg +
+      Type_LandOnly * coef$constant_LandOnly +
+      Type_Condo * coef$constant_Condo,
+    inf_distance = distance.num * coef$distance.num,
+    inf_area = area.m2.num * coef$area.m2.num,
+    inf_floorarea = total.floor.area.m2.num * coef$total.floor.area.m2.num,
+    inf_age = building.age * coef$building.age,
+    inf_bldgyr = built.1981_2000 * coef$built.1981_2000 +
+      built.after2000 * coef$built.after2000,
+    inf_bldg_RC = LandBldg_RC * coef$LandBldg_RC,
+    inf_bldg_S = LandBldg_S * coef$LandBldg_S,
+    inf_bldg_W = LandBldg_W * coef$LandBldg_W,
+    inf_bldgstructure = LandBldg_RC * coef$LandBldg_RC +
+      LandBldg_S * coef$LandBldg_S +
+      LandBldg_W * coef$LandBldg_W,
+    inf_UC = Urban_Control * coef$Urban_Control,
+    inf_bcr = max.building.coverage.ratio * coef$max.building.coverage.ratio,
+    inf_far = max.floor.area.ratio * coef$max.floor.area.ratio,
+    inf_city = City_Fukuoka * coef$City_Fukuoka +
+      City_Nagoya * coef$City_Nagoya +
+      City_Osaka * coef$City_Osaka +
+      City_Sapporo * coef$City_Sapporo,
+    inf_GDP = log.nGDP * coef$log.nGDP,
+    inf_CPI_real = log.CPI * (coef$log.CPI - 1),
+    inf_immi = PctImmi * coef$PctImmi,
+    inf_crime = Ncrime * coef$Ncrime,
+    inf_unemp = PctUnemploy * coef$PctUnemploy,
+    inf_exec = PctExec * coef$PctExec,
+    inf_lr4555 = JSHIS_I45_55 * coef$JSHIS_I45_55,
+    inf_lr55 = JSHIS_I55 * coef$JSHIS_I55,
+    inf_sr = Xpsi * coef$Xpsi,
+    inf_total_real = abs(inf_constant) + abs(inf_city) +
+      abs(inf_immi) + abs(inf_crime) + abs(inf_unemp) +
+      abs(inf_exec) + abs(inf_GDP) + abs(inf_CPI_real) +
+      abs(inf_area) + abs(inf_floorarea) + abs(inf_distance) + abs(inf_age) +
+      abs(inf_bldgyr) + abs(inf_bldgstructure) + abs(inf_UC) +
+      abs(inf_bcr) + abs(inf_far) + abs(inf_lr4555) + abs(inf_lr55) +
+      abs(inf_sr) ,
+    pct_intercept_real = abs(inf_constant) / inf_total_real ,
+    pct_city_real = abs(inf_city) / inf_total_real ,
+    pct_int_city_real = pct_intercept_real + pct_city_real,
+    pct_ward_real = (abs(inf_immi) + abs(inf_crime) + abs(inf_unemp) +
+                       abs(inf_exec)) / inf_total_real ,
+    pct_macro_real = (abs(inf_GDP) + abs(inf_CPI_real)) / inf_total_real ,
+    pct_prop_basic_real = (
+      abs(inf_area) + abs(inf_floorarea) +
+        abs(inf_distance) + abs(inf_age)
+    ) / inf_total_real ,
+    pct_prop_ext_real = (
+      abs(inf_bldgyr) + abs(inf_bldgstructure) + abs(inf_UC) +
+        abs(inf_bcr) + abs(inf_far)
+    ) / inf_total_real ,
+    pct_prop_all_real = pct_prop_basic_real + pct_prop_ext_real,
+    pct_lr_real = (abs(inf_lr4555) + abs(inf_lr55)) / inf_total_real ,
+    pct_sr_real = abs(inf_sr) / inf_total_real
+    
+  )
+
+individual_data <- individual_data %>% 
+  mutate(prediction_real = inf_constant + inf_city + 
+           inf_immi + inf_crime + inf_unemp + inf_exec +
+           inf_GDP + inf_CPI_real + 
+          inf_area + inf_floorarea + 
+           inf_bldgyr + inf_bldg_RC + inf_bldg_S + inf_far +
+           inf_distance + inf_age + 
+           inf_bldg_W + inf_UC + inf_bcr+
+           inf_lr4555 + inf_lr55 + inf_sr) %>% 
+  mutate(
+    pct_type_real = inf_constant / prediction_real,
+    pct_city_real = inf_city / prediction_real,
+    pct_intercept_real = pct_type_real + pct_city_real,
+    pct_ward_positive_real = (inf_immi + inf_exec) / prediction_real,
+    pct_ward_negative_real = (inf_crime + inf_unemp) / prediction_real,
+    pct_macro_real = (inf_GDP + inf_CPI_real) / prediction_real,
+    pct_prop_positive_real =
+      (inf_area + inf_floorarea + 
+         inf_bldgyr + inf_bldg_RC + inf_bldg_S + inf_far) / prediction_real,
+    pct_prop_negative_real = (inf_distance + inf_age + inf_bldg_W + inf_UC +
+                           inf_bcr ) / prediction_real,
+    pct_lr_real = (inf_lr4555 + inf_lr55) / prediction_real,
+    pct_sr_real = inf_sr / prediction_real 
+  )
+
+  
+```
+
+
+
+```{r, eval=T, echo=T}
+sumstat.inf1 <- individual_data %>%
+  group_by(Type) %>%
+  summarise(
+    intercept = median(pct_intercept_real),
+    `W_+` = median(pct_ward_positive_real),
+    `W_-` = median(pct_ward_negative_real),
+    M = median(pct_macro_real),
+    `P_+` = median(pct_prop_positive_real),
+    `P_-` = median(pct_prop_negative_real),
+    longrun = median(pct_lr_real),
+    shortrun = median(pct_sr_real),
+    total1 = median(pct_intercept_real+pct_ward_positive_real+pct_ward_negative_real+
+                      pct_macro_real+pct_prop_positive_real+pct_prop_negative_real+
+                      pct_lr_real+pct_sr_real)
+  ) %>%
+  mutate(total = intercept + 
+           `W_+` + `W_-` + M +
+           `P_+` + `P_-` +
+           longrun + shortrun) %>% 
+  mutate_at(
+    vars(-Type),
+    ~sprintf("%1.2f%%", 100*.)
+  ) %>% 
+  mutate(Type = c('land bldg', 'land only', 'condo'))
+sumstat.inf2 <- individual_data %>%
+  group_by(City) %>%
+  summarise(
+    intercept = median(pct_intercept_real),
+    `W_+` = median(pct_ward_positive_real),
+    `W_-` = median(pct_ward_negative_real),
+    M = median(pct_macro_real),
+    `P_+` = median(pct_prop_positive_real),
+    `P_-` = median(pct_prop_negative_real),
+    longrun = median(pct_lr_real),
+    shortrun = median(pct_sr_real)
+  ) %>%
+  mutate(total = intercept + 
+           `W_+` + `W_-` + M +
+           `P_+` + `P_-` +
+           longrun + shortrun) %>% 
+  mutate_at(
+    vars(-City),
+    ~sprintf("%1.2f%%", 100*.)
+  )
+
+sumstat.inf3 <- individual_data %>%
+  group_by(Type) %>%
+  summarise(
+    intercept = quantile(pct_intercept_real, 0.75) - quantile(pct_intercept_real, 0.25),
+    `W_+` = quantile(pct_ward_positive_real, 0.75) - quantile(pct_ward_positive_real, 0.25),
+    `W_-` = quantile(pct_ward_negative_real, 0.75) - quantile(pct_ward_negative_real, 0.25),
+    M = quantile(pct_macro_real, 0.75) - quantile(pct_macro_real, 0.25),
+    `P_+` = quantile(pct_prop_positive_real, 0.75) - quantile(pct_prop_positive_real, 0.25),
+    `P_-` = quantile(pct_prop_negative_real, 0.75) - quantile(pct_prop_negative_real, 0.25),
+    longrun = quantile(pct_lr_real, 0.75) - quantile(pct_lr_real, 0.25),
+    shortrun = quantile(pct_sr_real, 0.75) - quantile(pct_sr_real, 0.25)
+  ) %>% 
+   mutate_at(
+    vars(-Type),
+    ~sprintf("%1.2f%%", 100*.)
+  )%>% 
+  mutate(Type = c('land bldg', 'land only', 'condo'))
+
+sumstat.inf4 <- individual_data %>%
+  group_by(City) %>%
+  summarise(
+    intercept = quantile(pct_intercept_real, 0.75) - 
+      quantile(pct_intercept_real, 0.25),
+    `W_+` = quantile(pct_ward_positive_real, 0.75) - 
+      quantile(pct_ward_positive_real, 0.25),
+    `W_-` = quantile(pct_ward_negative_real, 0.75) - 
+      quantile(pct_ward_negative_real, 0.25),
+    M = quantile(pct_macro_real, 0.75) - quantile(pct_macro_real, 0.25),
+    `P_+` = quantile(pct_prop_positive_real, 0.75) - 
+      quantile(pct_prop_positive_real, 0.25),
+    `P_-` = quantile(pct_prop_negative_real, 0.75) - 
+      quantile(pct_prop_negative_real, 0.25),
+    longrun = quantile(pct_lr_real, 0.75) - 
+      quantile(pct_lr_real, 0.25),
+    shortrun = quantile(pct_sr_real, 0.75) - 
+      quantile(pct_sr_real, 0.25)
+  ) %>% 
+   mutate_at(
+    vars(-City),
+    ~sprintf("%1.2f%%", 100*.)
+  )
+
+
+```
+```{r, eval=T, echo=F}
+
+kable(sumstat.inf1, caption='Median of influences of each component, by type', format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+kable(sumstat.inf2, caption='Median of influences of each component, by city', format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+kable(sumstat.inf3, caption='IQR of influences of each component, by type', format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+kable(sumstat.inf4, caption='IQR of influences of each component, by city', format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+  
+  
+
+```
+
+
+
+We can also compute these influences per quarter, in particular the quarter after the Tohoku earthquake (2011/Q2).
+
+
+```{r, eval=T, echo=T}
+sumstat.inf1.tohoku <- individual_data %>%
+  filter(Q_after_Fukushima==1) %>% 
+  group_by(Type) %>%
+  summarise(
+    intercept = median(pct_intercept_real),
+    `W_+` = median(pct_ward_positive_real),
+    `W_-` = median(pct_ward_negative_real),
+    M = median(pct_macro_real),
+    `P_+` = median(pct_prop_positive_real),
+    `P_-` = median(pct_prop_negative_real),
+    longrun = median(pct_lr_real),
+    shortrun = median(pct_sr_real),
+    total1 = median(pct_intercept_real+pct_ward_positive_real+pct_ward_negative_real+
+                      pct_macro_real+pct_prop_positive_real+pct_prop_negative_real+
+                      pct_lr_real+pct_sr_real)
+  ) %>%
+  mutate(total = intercept + 
+           `W_+` + `W_-` + M +
+           `P_+` + `P_-` +
+           longrun + shortrun) %>% 
+  mutate_at(
+    vars(-Type),
+    ~sprintf("%1.2f%%", 100*.)
+  ) %>% 
+  mutate(Type = c('land bldg', 'land only', 'condo'))
+
+sumstat.inf2.tohoku <- individual_data %>%
+  filter(Q_after_Fukushima==1) %>% 
+  group_by(City) %>%
+  summarise(
+    intercept = median(pct_intercept_real),
+    `W_+` = median(pct_ward_positive_real),
+    `W_-` = median(pct_ward_negative_real),
+    M = median(pct_macro_real),
+    `P_+` = median(pct_prop_positive_real),
+    `P_-` = median(pct_prop_negative_real),
+    longrun = median(pct_lr_real),
+    shortrun = median(pct_sr_real)
+  ) %>%
+  mutate(total = intercept + 
+           `W_+` + `W_-` + M +
+           `P_+` + `P_-` +
+           longrun + shortrun) %>% 
+  mutate_at(
+    vars(-City),
+    ~sprintf("%1.2f%%", 100*.)
+  )
+
+```
+```{r, eval=T, echo=F}
+
+kable(sumstat.inf1.tohoku, caption='Median of influences of each component, by type, 2011Q2', 
+      format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+kable(sumstat.inf2.tohoku, caption='Median of influences of each component, by city, 2011Q2', 
+      format='latex', booktabs=TRUE) %>% 
+    kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+
+```
+
+The following code can be used to replicate Table C7 of the supplementary material.
+
+
+```{r, eval=T, echo=T}
+# risk premia
+individual_data <- individual_data %>% 
+  mutate(prediction = 
+           Type_LandBldg * coef$constant_LandBldg +
+           Type_LandOnly * coef$constant_LandOnly +
+           Type_Condo * coef$constant_Condo +
+           City_Fukuoka * coef$City_Fukuoka +
+           City_Nagoya * coef$City_Nagoya +
+           City_Osaka * coef$City_Osaka +
+           City_Sapporo * coef$City_Sapporo +
+           PctImmi * coef$PctImmi +
+           Ncrime * coef$Ncrime +
+           PctUnemploy * coef$PctUnemploy +
+           PctExec * coef$PctExec +
+           log.CPI * coef$log.CPI +
+           log.nGDP * coef$log.nGDP +
+           distance.num * coef$distance.num +
+           area.m2.num * coef$area.m2.num +
+           total.floor.area.m2.num * coef$total.floor.area.m2.num +
+           building.age * coef$building.age +
+           built.1981_2000 * coef$built.1981_2000 +
+           built.after2000 * coef$built.after2000 +
+           LandBldg_RC * coef$LandBldg_RC +
+           LandBldg_S * coef$LandBldg_S +
+           LandBldg_W * coef$LandBldg_W +
+           Urban_Control * coef$Urban_Control +
+           max.building.coverage.ratio * coef$max.building.coverage.ratio +
+           max.floor.area.ratio * coef$max.floor.area.ratio +
+           JSHIS_I45_55 * coef$JSHIS_I45_55 +
+           JSHIS_I55 * coef$JSHIS_I55 +
+           Xpsi * coef$Xpsi,
+         prediction_real = prediction - log.CPI * 1,
+         m0 = Type_LandBldg * coef$constant_LandBldg +
+           Type_LandOnly * coef$constant_LandOnly +
+           Type_Condo * coef$constant_Condo + 
+           City_Fukuoka * coef$City_Fukuoka +
+           City_Nagoya * coef$City_Nagoya +
+           City_Osaka * coef$City_Osaka +
+           City_Sapporo * coef$City_Sapporo +
+           PctImmi * coef$PctImmi +
+           Ncrime * coef$Ncrime +
+           PctUnemploy * coef$PctUnemploy +
+           PctExec * coef$PctExec +
+           log.CPI * coef$log.CPI +
+           log.nGDP * coef$log.nGDP + 
+           distance.num * coef$distance.num +
+           area.m2.num * coef$area.m2.num +
+           total.floor.area.m2.num * coef$total.floor.area.m2.num +
+           building.age * coef$building.age +
+           built.1981_2000 * coef$built.1981_2000 +
+           built.after2000 * coef$built.after2000 +
+           LandBldg_RC * coef$LandBldg_RC +
+           LandBldg_S * coef$LandBldg_S +
+           LandBldg_W * coef$LandBldg_W +
+           Urban_Control * coef$Urban_Control +
+           max.building.coverage.ratio * coef$max.building.coverage.ratio +
+           max.floor.area.ratio * coef$max.floor.area.ratio,
+         m1 = Type_LandBldg * coef$constant_LandBldg +
+           Type_LandOnly * coef$constant_LandOnly +
+           Type_Condo * coef$constant_Condo +
+           City_Fukuoka * coef$City_Fukuoka +
+           City_Nagoya * coef$City_Nagoya +
+           City_Osaka * coef$City_Osaka +
+           City_Sapporo * coef$City_Sapporo +
+           PctImmi * coef$PctImmi +
+           Ncrime * coef$Ncrime +
+           PctUnemploy * coef$PctUnemploy +
+           PctExec * coef$PctExec +
+           log.CPI * coef$log.CPI +
+           log.nGDP * coef$log.nGDP +
+           distance.num * coef$distance.num +
+           area.m2.num * coef$area.m2.num +
+           total.floor.area.m2.num * coef$total.floor.area.m2.num +
+           building.age * coef$building.age +
+           built.1981_2000 * coef$built.1981_2000 +
+           built.after2000 * coef$built.after2000 +
+           LandBldg_RC * coef$LandBldg_RC +
+           LandBldg_S * coef$LandBldg_S +
+           LandBldg_W * coef$LandBldg_W +
+           Urban_Control * coef$Urban_Control +
+           max.building.coverage.ratio * coef$max.building.coverage.ratio +
+           max.floor.area.ratio * coef$max.floor.area.ratio +
+           JSHIS_I45_55 * coef$JSHIS_I45_55 +
+           JSHIS_I55 * coef$JSHIS_I55,
+         m2 = Type_LandBldg * coef$constant_LandBldg +
+           Type_LandOnly * coef$constant_LandOnly +
+           Type_Condo * coef$constant_Condo +
+           City_Fukuoka * coef$City_Fukuoka +
+           City_Nagoya * coef$City_Nagoya +
+           City_Osaka * coef$City_Osaka +
+           City_Sapporo * coef$City_Sapporo +
+           PctImmi * coef$PctImmi +
+           Ncrime * coef$Ncrime +
+           PctUnemploy * coef$PctUnemploy +
+           PctExec * coef$PctExec +
+           log.CPI * coef$log.CPI +
+           log.nGDP * coef$log.nGDP +
+           distance.num * coef$distance.num +
+           area.m2.num * coef$area.m2.num +
+           total.floor.area.m2.num * coef$total.floor.area.m2.num +
+           building.age * coef$building.age +
+           built.1981_2000 * coef$built.1981_2000 +
+           built.after2000 * coef$built.after2000 +
+           LandBldg_RC * coef$LandBldg_RC +
+           LandBldg_S * coef$LandBldg_S +
+           LandBldg_W * coef$LandBldg_W +
+           Urban_Control * coef$Urban_Control +
+           max.building.coverage.ratio * coef$max.building.coverage.ratio +
+           max.floor.area.ratio * coef$max.floor.area.ratio +
+           JSHIS_I45_55 * coef$JSHIS_I45_55 +
+           JSHIS_I55 * coef$JSHIS_I55 +
+           Xpsi_obj * coef$Xpsi,
+         m3 = prediction
+         )
+
+sumstat.rp <- individual_data %>%
+  group_by(Type, City) %>%
+  summarise(median_log_price = median(log.price),
+                    pred.m0 = median(m0),
+                    pred.m1 = median(m1),
+                    pred.m2 = median(m2),
+                    pred.m3 = median(m3)) %>% 
+  mutate(premium_lr = pred.m1 - pred.m0,
+         premium_sr_obj = pred.m2 - pred.m1,
+         premium_sr_sub = pred.m3 - pred.m2) %>% 
+  mutate_at( c(
+      'median_log_price',
+      'premium_lr',
+      'premium_sr_obj',
+      'premium_sr_sub'
+    ),
+    formatC,
+    format = "f",
+    digits = 4) %>% 
+  select(Type, City, median_log_price, premium_lr, premium_sr_obj, premium_sr_sub)
+
+```
+
+
+
+```{r, eval=T, echo=F}
+
+kable(sumstat.rp, caption = "Decomposition of the premia for earthquake risk per type and city",format='latex', booktabs=TRUE)%>% 
+  kable_styling(latex_options=c("scale_down", "HOLD_position"))
+
+```
