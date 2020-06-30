@@ -1,7 +1,7 @@
 ---
 title: "Replication Instructions"
 author: "Masako Ikefuji, Roger J. A. Laeven, Jan R. Magnus, Yuan Yue"
-date: "June 26, 2020"
+date: "June 30, 2020"
 output:
   pdf_document: 
     keep_tex: true
@@ -25,7 +25,7 @@ The structure of the code consists of two major parts:
 A. Estimation and simulation of the ETAS model
 
   - Estimation of the ETAS model (replication of the summary statistics and estimation results in Table 48 and Table 50 of the data documentation);
-  - Simulation of short-run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalogue. Replication of Figures 1 and 2 of the paper;
+  - Simulation of short-run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalog. Replication of Figures 1 and 2 of the paper;
 
 and 
 
@@ -123,7 +123,7 @@ Sys.which("make")
 
 * Create a directory called "earthquake-risk" and set it as the current working directory in $\tt{R}$.
 * Download the compressed file for $\tt{R}$ package `mvecr` ("mvecr_0.3.0.tar.gz") from \url{https://github.com/yy112/earthquake-risk} into the current working directory.
-* Within the current working directory, create a subdirectory called "data" and download the files.
+* Within the current working directory, create a subdirectory called "data" and download the files
 "individual_data.zip", "Xpsi-1.csv", "city_range.csv", and "JMA_records.csv" into this subdirectory.
 * Within the current working directory, create a subdirectory called "output".
 * Use the following $\tt{R}$ code to install all relevant packages and read data.
@@ -192,7 +192,7 @@ jma_data <- read.table(
 
 * `individual_data.zip` (contains `individual_data.csv`, a csv file of 94446 KB): This is the main data file of our paper, with 331343 observations of our housing sample from 2006Q2 - 2015Q3. Each row represents one housing transaction record, containing information on (the  natural logarithm of) total transaction price of a residential property, transaction period, housing type, city, district(area), ward, name of the nearest station, distance to the nearest station, square footage, total floor area, building age, building structure, long term earthquake probability forecast provided by JSHIS, macroeconomic variables, indicators of ward information, dummy variables for the transaction quarter, etc.
 
-* `city_range.csv` (1 KB): This file contains the names of the five cities included in our study and the corresponding range of coordinates for the space window chosen for each city. The range of coordinates are used for selecting the earthquake records to be included in the estimation of ETAS models.
+* `city_range.csv` (1 KB): This file contains the names of the five cities included in our study and the corresponding range of coordinates for the spatial window chosen for each city. The range of coordinates are used for selecting the earthquake records to be included in the estimation of ETAS models.
 
 * `JMA_records.csv` (24245 KB): This file contains all earthquake records downloaded from the JMA website, with 194882 observations ranging from 1923-01-01 to 2015-12-31. Each row contains an earthquake record with relevant information. The information related to each record consists of time, location, magnitude, etc. A subset of this file is used to estimate ETAS models.  
 
@@ -214,7 +214,7 @@ The main functions included in `etas_func.R` are
 
 The main user-facing functions of our code are the `vectorize`, `ec_reg`, `reg_psi`, and `opt_psi` functions in the `mvecr` package. 
 
-- `vectorize` takes the individual records as input, group them by the specified "time", "district", and "type" dimensions, take the averages within each group, and stack the results into vectors and matrices that can be used in the multiple error components regression;
+- `vectorize` takes the individual records as input, groups them by the specified "time", "district", and "type" dimensions, takes the averages within each group, and stacks the results into vectors and matrices that can be used in the multiple error components regression;
 - `ec_reg` takes the "vectorized" data and performs maximum likelihood estimation of the multivariate error components model;
 - `reg_psi` takes a step further and allows one of the regressors to be transformed by a single-parameter function, with a given parameter $\psi$;
 - `opt_psi` is a wrapper function around `reg_psi` that implements a grid search to find the optimal $\psi$. Given a list of candidate parameters $\psi$'s, it calls the function `reg_psi` for each value of $\psi$ on the list and records the loglikelihood value. The parameter corresponding to the highest value of loglikelihood is chosen as $\hat{\psi}$.
@@ -226,11 +226,11 @@ The main user-facing functions of our code are the `vectorize`, `ec_reg`, `reg_p
 
 ## Estimation of ETAS model
 
-The following code will be used to replicate the results of the ETAS model estimation. (As shown in Table 48 and Table 50 of _Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities: Data Documentation_). The estimation takes less than 1 minute.
+The following code will be used to replicate the results of the ETAS model estimation. (As shown in Table 48 and Table 50 of _Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities - Data Documentation_). The estimation takes less than 1 minute.
 
 ```{r etas-estimation, message=F, warning=F, eval=T}
 # estimation of ETAS model for each city
-# preparation of the earthquake catalogue
+# preparation of the earthquake catalog
 eq_catalog <- EQcatalog(jma_data, t_start = 1970, t_end = 2015, depth = 100, mag_min = 4,
                  origin = as.Date("1970-01-01"))
 # setting magnitude thresholds for each city
