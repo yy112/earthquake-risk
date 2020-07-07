@@ -847,7 +847,7 @@ tab_3 <- rbind(tab_3, c('Delta logL',
                         '-', '-'))
 
 ```
-```{r, eval=F, echo=F}
+```{r, eval=T, echo=F}
 
 kable(tab_3, caption='Estimation results under various risk assumptions', format="latex", booktabs=TRUE)%>% 
     kable_styling(latex_options=c("scale_down", "HOLD_position"))
