@@ -20,11 +20,11 @@ header-includes:
 This document contains instructions to replicate all the estimation procedures, tables and graphs in the paper: 
  _Earthquake risk embedded in property prices: Evidence from five Japanese cities_.
 
-The structure of the code consists of two major parts:
+The code consists of two major parts:
 
 A. Estimation and simulation of the ETAS model
 
-  - Estimation of the ETAS model (replication of the summary statistics and estimation results in Table 48 and Table 50 of the data documentation);
+  - Estimation of the ETAS model, replication of the summary statistics and estimation results in Tables 48 and 50 of the Data Documentation;
   - Simulation of short-run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalog. Replication of Figures 1 and 2 of the paper;
 
 and 
@@ -47,7 +47,7 @@ These two parts can be executed independently of each other. The functions relat
 
 ```{r setup, include=FALSE}
 
-path <- "C:/Users/yuany/Dropbox/earthquake_risk_premia/revision/github/earthquake-risk-master"
+path <- "C:\\Users\\yuany\\OneDrive\\Documents\\GitHub\\earthquake-risk"
 
 knitr::opts_chunk$set(echo = TRUE, eval=FALSE, root.dir = path, message=F, warning=F)
 
@@ -196,7 +196,7 @@ jma_data <- read.table(
 
 * `JMA_records.csv` (24245 KB): This file contains all earthquake records downloaded from the JMA website, with 194882 observations ranging from 1923-01-01 to 2015-12-31. Each row contains an earthquake record with relevant information. The information related to each record consists of time, location, magnitude, etc. A subset of this file is used to estimate ETAS models.  
 
-* `Xpsi-1.cs`v (2 KB): This file is the simulation output of the ETAS models. For each city in our study, the ETAS model is estimated and simulated. The simulated probability of having an earthquake exceeding the magnitude threshold 5.5 in each quarter is recorded in this dataset. Each column corresponds to one of the five cities included in the scope of our analysis, and each row is the simulated quarterly short-run eartjquake probability.   
+* `Xpsi-1.cs`v (2 KB): This file is the simulation output of the ETAS models. For each city in our study, the ETAS model is estimated and simulated. The simulated probability of having an earthquake exceeding the magnitude threshold 5.5 in each quarter is recorded in this dataset. Each column corresponds to one of the five cities included in the scope of our analysis, and each row is the simulated quarterly short-run earthquake probability.   
 
 
 # Main user-facing functions
@@ -217,7 +217,7 @@ The main user-facing functions of our code are the `vectorize`, `ec_reg`, `reg_p
 - `vectorize` takes the individual records as input, groups them by the specified "time", "district", and "type" dimensions, takes the averages within each group, and stacks the results into vectors and matrices that can be used in the multiple error components regression;
 - `ec_reg` takes the "vectorized" data and performs maximum likelihood estimation of the multivariate error components model;
 - `reg_psi` takes a step further and allows one of the regressors to be transformed by a single-parameter function, with a given parameter $\psi$;
-- `opt_psi` is a wrapper function around `reg_psi` that implements a grid search to find the optimal $\psi$. Given a list of candidate parameters $\psi$'s, it calls the function `reg_psi` for each value of $\psi$ on the list and records the loglikelihood value. The parameter corresponding to the highest value of loglikelihood is chosen as $\hat{\psi}$.
+- `opt_psi` is a wrapper function around `reg_psi` that implements a grid search to find the optimal $\psi$. Given a list of candidate parameters $\psi$, it calls the function `reg_psi` for each value of $\psi$ on the list and records the loglikelihood value. The parameter corresponding to the highest value of loglikelihood is chosen as $\hat{\psi}$.
 
 
 
@@ -290,7 +290,7 @@ kable(sum.table %>%
 
 ## Simulation of short-run earthquake probabilities
 
-The following code can be used to simulate the short-run earthquake probabilities. We used 30000 runs to generate the final similated probabilities, which takes about 24 hours for each city. The output of our simulation, "Xpsi-1.csv", is used as an input to the multivariate error components model for the rest of this paper. To continue the replication for this paper use the file "Xpsi-1.csv" in the "data" folder for the rest of this document.
+The following code can be used to simulate the short-run earthquake probabilities. We used 30,000 Monte Carlo runs to generate the final simulated probabilities, which takes about 24 hours for each city. The output of our simulation, "Xpsi-1.csv", is used as an input to the multivariate error components model for the rest of this paper. To continue the replication for this paper use the file "Xpsi-1.csv" in the "data" folder for the rest of this document.
 
 ```{r echo=T, eval=F}
 # This file generates the additional vector of regressor XPsi, for given psi.

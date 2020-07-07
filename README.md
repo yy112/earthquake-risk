@@ -21,7 +21,7 @@ The file `city_range.csv` (size: 1KB) contains the chosen spatial window (for th
 
 4. `JMA_records.csv`
 
-Earthquake records collected by JMA are stored in `JMA_records.csv` (size: 24.15 MB). Each row of this file contains one earthquake record, with information on the time and location of the record. Detailed description of the records can be found in http://www.data.jma.go.jp/svd/eqev/data/bulletin/data/shindo/format_e.txt.
+Earthquake records collected by JMA are stored in `JMA_records.csv` (size: 24.15 MB). Each row of this file contains one earthquake record, with information on the time and location of the earthquake. Detailed description of the records can be found in http://www.data.jma.go.jp/svd/eqev/data/bulletin/data/shindo/format_e.txt.
 
 
   For a more detailed description of the data used in our analysis as well as the data collection process, please see the accompanying data documentation (_Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities - Data Documentation_). Code used for data collection and data cleaning can be provided upon request.
@@ -49,8 +49,8 @@ This file contains the main functions used in the estimation and simulation of E
 
 A. Estimation and simulation of the ETAS model
 
-  - Estimation of the ETAS model (replication of the summary statistics and estimation results in Table 48 and Table 50 of the data documentation). Computation time needed: 5 minutes.
-  - Simulation of short-run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalog. Computation time needed: around 24 hours for 30000 Monte Carlo runs for each city. The output of the simulation is contained in `Xpsi-1.csv`. Replication of Figures 1 and 2 of the paper can be done using the provided data `Xpsi-1.csv` without having to perform the simulation first.
+  - Estimation of the ETAS model, replication of the summary statistics and estimation results in Tables 48 and 50 of the Data Documentation. Computation time needed: 5 minutes.
+  - Simulation of short run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalog. Computation time needed: around 24 hours for 30000 Monte Carlo runs for each city. The output of the simulation is contained in `Xpsi-1.csv`. Figures 1 and 2 of the paper can be replicated using the data provided in Xpsi-1.csv without having to perform the simulation first.
 
 and 
 
