@@ -24,7 +24,7 @@ The file `city_range.csv` (size: 1KB) contains the chosen spatial window (for th
 Earthquake records collected by JMA are stored in `JMA_records.csv` (size: 24.15 MB). Each row of this file contains one earthquake record, with information on the time and location of the earthquake. Detailed description of the records can be found in http://www.data.jma.go.jp/svd/eqev/data/bulletin/data/shindo/format_e.txt.
 
 
-  For a more detailed description of the data used in our analysis as well as the data collection process, please see the accompanying data documentation (_Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities - Data Documentation_). Code used for data collection and data cleaning can be provided upon request.
+  For a more detailed description of the data used in our analysis as well as the data collection process, please see the accompanying data documentation (_Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities - Data Documentation_) available from https://bit.ly/3e7Pgti. Code used for data collection and data cleaning can be provided upon request.
 
 ## Code
 
@@ -39,7 +39,7 @@ This file contains the main functions used in the estimation and simulation of E
   
 3. `R` package `mvecr`
 
-  We have written an R package `mvecr` ("multivariate error components estimation in R") for the main estimation functions to replicate the analysis in the paper. To install this package, download the source file for R package `mvecr` (`mvecr_0.3.0.tar.gz`) from https://github.com/yy112/earthquake-risk and choose "Install packages from Package Archive File (.zip; .tar.gz)" in `R`. A manual of this package (`mvecr_manual.pdf`) is also included in this repository, which is more detailed about the inputs and outputs of each function in this package. A subsample of the `individual_data` dataset is included in this package to be used in examples.
+  We have written an `R` package `mvecr` ("multivariate error components estimation in R") for the main estimation functions to replicate the analysis in the paper. To install this package, download the source file for `R` package `mvecr` (`mvecr_0.3.0.tar.gz`) from https://github.com/yy112/earthquake-risk and choose "Install packages from Package Archive File (.zip; .tar.gz)" in `R`. A manual of this package (`mvecr_manual.pdf`) is also included in this repository, which is more detailed about the inputs and outputs of each function in this package. A subsample of the `individual_data` dataset is included in this package to be used in examples.
 
   Detailed installation instructions as well as code used to replicate tables and figures of the paper, can be found in `replication_instructions.Rmd` or `replication_instructions.pdf`.
 
@@ -50,7 +50,7 @@ This file contains the main functions used in the estimation and simulation of E
 A. Estimation and simulation of the ETAS model
 
   - Estimation of the ETAS model, replication of the summary statistics and estimation results in Tables 48 and 50 of the Data Documentation. Computation time needed: 5 minutes.
-  - Simulation of short run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalog. Computation time needed: around 24 hours for 30000 Monte Carlo runs for each city. The output of the simulation is contained in `Xpsi-1.csv`. Figures 1 and 2 of the paper can be replicated using the data provided in Xpsi-1.csv without having to perform the simulation first.
+  - Simulation of short run earthquake probabilities, using the estimated ETAS parameters and historical earthquake catalog. Computation time needed: around 24 hours for 30000 Monte Carlo runs for each city. The output of the simulation is contained in `Xpsi-1.csv`. Figures 1 and 2 of the paper can be replicated using the data provided in `Xpsi-1.csv` without having to perform the simulation first.
 
 and 
 
@@ -99,4 +99,4 @@ Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2020). Earthquake risk emb
 
 Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2020). Earthquake risk embedded in property prices: Evidence from five Japanese cities - Supplementary material.
 
-Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2020). Earthquake risk embedded in property prices: Evidence from five Japanese cities - Data documentation.
+Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2020). Earthquake risk embedded in property prices: Evidence from five Japanese cities - Data documentation (available from https://bit.ly/3e7Pgti).
