@@ -24,7 +24,7 @@ The file `city_range.csv` (size: 1KB) contains the chosen spatial window (for th
 Earthquake records collected by JMA are stored in `JMA_records.csv` (size: 24.15 MB). Each row of this file contains one earthquake record, with information on the time and location of the earthquake. Detailed description of the records can be found in http://www.data.jma.go.jp/svd/eqev/data/bulletin/data/shindo/format_e.txt.
 
 
-  For a more detailed description of the data used in our analysis as well as the data collection process, please see the accompanying data documentation (_Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities - Data Documentation_) available from https://bit.ly/3qHcTQ3 . Code used for data collection and data cleaning can be provided upon request.
+  For a more detailed description of the data used in our analysis as well as the data collection process, please see the accompanying data documentation (_Earthquake Risk Embedded in Property Prices: Evidence from Five Japanese Cities - Data Documentation_) available from https://bit.ly/3qHcTQ3. Code used for data collection and data cleaning can be provided upon request.
 
 ## Code
 
@@ -99,4 +99,4 @@ Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2021). Earthquake risk emb
 
 Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2021). Earthquake risk embedded in property prices: Evidence from five Japanese cities - Supplementary material.
 
-Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2021). Earthquake risk embedded in property prices: Evidence from five Japanese cities - Data documentation (available from https://bit.ly/3qHcTQ3 ).
+Ikefuji, M., Laeven, R. J., Magnus, J. R., & Yue, Y. (2021). Earthquake risk embedded in property prices: Evidence from five Japanese cities - Data documentation (available from https://bit.ly/3qHcTQ3).
